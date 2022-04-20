@@ -17,6 +17,8 @@ program advect_pbmin
 
   ! masks
   integer, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: ip, iu, iv, iq
+  integer :: ip_
+  real :: p_
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: util1, util2, util3
   real, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: depth
   real :: depmax
@@ -223,21 +225,21 @@ program advect_pbmin
   write(*,*) 'lperiodi',lperiodi
   write(*,*) 'lperiodj',lperiodj
   write(*,*) 'larctic',larctic
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'depth: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(1(i1,a)$)') nint(depth(i,j)), "|"
-     enddo
-     write(*,'(x)')
-  enddo
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, ': '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(4(i1,a)$)') ip(i,j), ",", iq(i,j), ",", iu(i,j) &
-             , ",", iv(i,j), "|"
-     enddo
-     write(*,'(x)')
-  enddo
+  !do j=1-nbdy,jdm+nbdy
+  !   write(*,'(2i3,a$)') j, 1, 'depth: '
+  !   do i=1-nbdy,idm+nbdy
+  !      write(*,'(1(i1,a)$)') nint(depth(i,j)), "|"
+  !   enddo
+  !   write(*,'(x)')
+  !enddo
+  !do j=1-nbdy,jdm+nbdy
+  !   write(*,'(2i3,a$)') j, 1, ': '
+  !   do i=1-nbdy,idm+nbdy
+  !      write(*,'(4(i1,a)$)') ip(i,j), ",", iq(i,j), ",", iu(i,j) &
+  !           , ",", iv(i,j), "|"
+  !   enddo
+  !   write(*,'(x)')
+  !enddo
 
   write(*,*) "COMPUTE: pbmin"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -270,8 +272,8 @@ program advect_pbmin
               jne=j*(1-ip(ie,jn))+jn*ip(ie,jn)
               pbmin(i,j)= &
                    min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
-                   p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
-                   p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
+                       p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
+                       p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
            enddo
         enddo
      enddo
@@ -279,6 +281,145 @@ program advect_pbmin
   end do
   delta=wallclock()-t1
   delta_orig=delta
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+
+  do j=1-nbdy,jdm+nbdy
+     write(*,'(2i3,a$)') j, 1, 'out: '
+     do i=1-nbdy,idm+nbdy
+        write(*,'(1(e14.6,a)$)') pbmin(i,j), "|"
+     enddo
+     write(*,'(x)')
+  enddo
+
+  write(*,*) "COMPUTE: pbmin"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "Full loops: iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  t1=wallclock()
+  do n_it=1, MAX_ITERATIONS
+     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
+     do j=-1,jj+2
+        do i=-1,ii+2
+           iw=i-iu(i  ,j)
+           ie=i+iu(i+1,j)
+           js=j-iv(i,j  )
+           jn=j+iv(i,j+1)
+           isw=i*(1-ip(iw,js))+iw*ip(iw,js)
+           jsw=j*(1-ip(iw,js))+js*ip(iw,js)
+           ise=i*(1-ip(ie,js))+ie*ip(ie,js)
+           jse=j*(1-ip(ie,js))+js*ip(ie,js)
+           inw=i*(1-ip(iw,jn))+iw*ip(iw,jn)
+           jnw=j*(1-ip(iw,jn))+jn*ip(iw,jn)
+           ine=i*(1-ip(ie,jn))+ie*ip(ie,jn)
+           jne=j*(1-ip(ie,jn))+jn*ip(ie,jn)
+           pbmin(i,j)= &
+                min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
+                    p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
+                    p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
+        enddo
+     enddo
+     !$OMP END PARALLEL DO
+  end do
+  delta=wallclock()-t1
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+
+  do j=1-nbdy,jdm+nbdy
+     write(*,'(2i3,a$)') j, 1, 'out: '
+     do i=1-nbdy,idm+nbdy
+        write(*,'(1(e14.6,a)$)') pbmin(i,j), "|"
+     enddo
+     write(*,'(x)')
+  enddo
+
+  write(*,*) "COMPUTE: pbmin"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "Full loops+temp: iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  t1=wallclock()
+  do n_it=1, MAX_ITERATIONS
+     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
+     do j=-1,jj+2
+        do i=-1,ii+2
+           iw=i-iu(i  ,j)
+           ie=i+iu(i+1,j)
+           js=j-iv(i,j  )
+           jn=j+iv(i,j+1)
+           ip_=ip(iw,js)
+           isw=i*(1-ip_)+iw*ip_
+           jsw=j*(1-ip_)+js*ip_
+           ip_=ip(ie,js)
+           ise=i*(1-ip_)+ie*ip_
+           jse=j*(1-ip_)+js*ip_
+           ip_=ip(iw,jn)
+           inw=i*(1-ip_)+iw*ip_
+           jnw=j*(1-ip_)+jn*ip_
+           ip_=ip(ie,jn)
+           ine=i*(1-ip_)+ie*ip_
+           jne=j*(1-ip_)+jn*ip_
+           pbmin(i,j)= &
+                min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
+                    p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
+                    p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
+        enddo
+     enddo
+     !$OMP END PARALLEL DO
+  end do
+  delta=wallclock()-t1
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+
+  do j=1-nbdy,jdm+nbdy
+     write(*,'(2i3,a$)') j, 1, 'out: '
+     do i=1-nbdy,idm+nbdy
+        write(*,'(1(e14.6,a)$)') pbmin(i,j), "|"
+     enddo
+     write(*,'(x)')
+  enddo
+
+  write(*,*) "COMPUTE: pbmin"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "Full loops+if: iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  t1=wallclock()
+  do n_it=1, MAX_ITERATIONS
+
+     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
+     do j=-1,jj+2
+        do i=-1,ii+2
+           p_ = huge(1.0)
+           iw=iu(i  ,j)
+           ie=iu(i+1,j)
+           js=iv(i,j  )
+           jn=iv(i,j+1)
+           ! iw defined
+           if(iw /= 0) then
+              if(js /= 0 .and. ip(i-1,j-1) /= 0) p_ = min(p_, p(i-1,j-1, kk+1))
+              if(              ip(i-1,j  ) /= 0) p_ = min(p_, p(i-1,j  , kk+1))
+              if(jn /= 0 .and. ip(i-1,j+1) /= 0) p_ = min(p_, p(i-1,j+1, kk+1))
+           end if
+
+              if(js /= 0 .and. ip(i  ,j-1) /= 0) p_ = min(p_, p(i  ,j-1, kk+1))
+                                                 p_ = min(p_, p(i  ,j  , kk+1))
+              if(jn /= 0 .and. ip(i  ,j+1) /= 0) p_ = min(p_, p(i  ,j+1, kk+1))
+
+            ! ie defined
+           if(ie /= 0) then
+              if(js /= 0 .and. ip(i+1,j-1) /= 0) p_ = min(p_, p(i+1,j-1, kk+1))
+              if(              ip(i+1,j  ) /= 0) p_ = min(p_, p(i+1,j  , kk+1))
+              if(jn /= 0 .and. ip(i+1,j+1) /= 0) p_ = min(p_, p(i+1,j+1, kk+1))
+           end if
+
+           pbmin(i,j) = p_
+        enddo
+     enddo
+     !$OMP END PARALLEL DO
+  end do
+  delta=wallclock()-t1
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 

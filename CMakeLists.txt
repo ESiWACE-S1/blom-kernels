@@ -15,6 +15,8 @@ target_compile_options(options_flags INTERFACE
 
    $<$<Fortran_COMPILER_ID:GNU>:
     -O3 -finit-local-zero  -finline-functions -march=native -fimplicit-none -ffree-line-length-none
+    -ftree-vectorize
+    -ftree-vectorizer-verbose=5
     $<$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},10>:
       -fallow-argument-mismatch # gfortran v10 is strict about erroneous API calls: "Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)"
      >
