@@ -49,6 +49,8 @@ target_link_options(options_flags INTERFACE
 add_library(loop_utils OBJECT wallclock.c wallclock.F90)
 
 add_executable(advect_pbmin            $<TARGET_OBJECTS:loop_utils> advect_pbmin.F90)
+add_executable(advect_eitvel           $<TARGET_OBJECTS:loop_utils> advect_eitvel.F90)
 
 target_link_libraries(advect_pbmin     options_flags)
+target_link_libraries(advect_eitvel    options_flags)
 
