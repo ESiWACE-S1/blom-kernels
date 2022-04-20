@@ -1,4 +1,5 @@
 program advect_pbmin
+  use wallclock_mod
   implicit none
   integer, parameter :: nbdy = 3
   integer, parameter :: idm = 64
@@ -8,7 +9,7 @@ program advect_pbmin
   integer :: l,i,j,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne
   integer :: ii,jj,kk, i0,j0
   integer, parameter :: ms = 10
-  integer :: isp(ms)
+  integer :: isp(1-nbdy:jdm+nbdy-1)
   integer :: ifp(-1:jdm+2, ms) ! first section index per section
   integer :: ilp(-1:jdm+2, ms) ! last section index per section
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: pbmin
@@ -22,6 +23,11 @@ program advect_pbmin
   ! bigrid
   logical :: lperiodi, lperiodj, larctic
   integer :: nreg
+
+  integer, parameter :: MAX_ITERATIONS=10000
+  integer :: n_it
+  !https://stackoverflow.com/a/6880672
+  real(8)::t1,delta, delta_orig
 
   i0 = 0
   ii = idm
@@ -232,31 +238,57 @@ program advect_pbmin
      enddo
      write(*,'(x)')
   enddo
-  stop '(DEBUG)'
-  !$OMP PARALLEL DO PRIVATE( &
-  !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
+
+  write(*,*) "COMPUTE: pbmin"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "DEFAULT: iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   do j=-1,jj+2
-     do l=1,isp(j)
-        do i=max(-1,ifp(j,l)),min(ii+2,ilp(j,l))
-           iw=i-iu(i  ,j)
-           ie=i+iu(i+1,j)
-           js=j-iv(i,j  )
-           jn=j+iv(i,j+1)
-           isw=i*(1-ip(iw,js))+iw*ip(iw,js)
-           jsw=j*(1-ip(iw,js))+js*ip(iw,js)
-           ise=i*(1-ip(ie,js))+ie*ip(ie,js)
-           jse=j*(1-ip(ie,js))+js*ip(ie,js)
-           inw=i*(1-ip(iw,jn))+iw*ip(iw,jn)
-           jnw=j*(1-ip(iw,jn))+jn*ip(iw,jn)
-           ine=i*(1-ip(ie,jn))+ie*ip(ie,jn)
-           jne=j*(1-ip(ie,jn))+jn*ip(ie,jn)
-           pbmin(i,j)= &
-                min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
-                p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
-                p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
+     isp(j) = 1
+     ifp(j,1) = -1
+     ilp(j,1) = ii+2
+  end do
+
+  t1=wallclock()
+  do n_it=1, MAX_ITERATIONS
+     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
+     do j=-1,jj+2
+        do l=1,isp(j)
+           do i=max(-1,ifp(j,l)),min(ii+2,ilp(j,l))
+              iw=i-iu(i  ,j)
+              ie=i+iu(i+1,j)
+              js=j-iv(i,j  )
+              jn=j+iv(i,j+1)
+              isw=i*(1-ip(iw,js))+iw*ip(iw,js)
+              jsw=j*(1-ip(iw,js))+js*ip(iw,js)
+              ise=i*(1-ip(ie,js))+ie*ip(ie,js)
+              jse=j*(1-ip(ie,js))+js*ip(ie,js)
+              inw=i*(1-ip(iw,jn))+iw*ip(iw,jn)
+              jnw=j*(1-ip(iw,jn))+jn*ip(iw,jn)
+              ine=i*(1-ip(ie,jn))+ie*ip(ie,jn)
+              jne=j*(1-ip(ie,jn))+jn*ip(ie,jn)
+              pbmin(i,j)= &
+                   min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
+                   p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
+                   p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
+           enddo
         enddo
      enddo
+     !$OMP END PARALLEL DO
+  end do
+  delta=wallclock()-t1
+  delta_orig=delta
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+
+  do j=1-nbdy,jdm+nbdy
+     write(*,'(2i3,a$)') j, 1, 'out: '
+     do i=1-nbdy,idm+nbdy
+        write(*,'(1(e14.6,a)$)') pbmin(i,j), "|"
+     enddo
+     write(*,'(x)')
   enddo
-  !$OMP END PARALLEL DO
+
 
 end program advect_pbmin
