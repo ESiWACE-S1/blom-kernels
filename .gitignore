@@ -1,0 +1,11 @@
+tags
+*.orig
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+advect_pbmin
+Makefile
+*.mod
+*.a
+advect_eitvel
+advect_eitvel_opt1
