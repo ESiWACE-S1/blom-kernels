@@ -114,13 +114,9 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'out: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(2(e14.6,a)$)') utotm(i,j), ",", vtotm(i,j), '|'
-     enddo
-     write(*,'(x)')
-  enddo
+  i = random_uniform(1,idm)
+  j = random_uniform(1,jdm)
+  write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 
 #ifdef ADVECT_EITVEL_OPT1
   write(*,*) "OPT1: eitvel"
@@ -178,13 +174,9 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'out: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(2(e14.6,a)$)') utotm(i,j), ",", vtotm(i,j), '|'
-     enddo
-     write(*,'(x)')
-  enddo
+  i = random_uniform(1,idm)
+  j = random_uniform(1,jdm)
+  write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
 #ifdef ADVECT_EITVEL_OPT2
@@ -243,16 +235,11 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'out: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(2(e14.6,a)$)') utotm(i,j), ",", vtotm(i,j), '|'
-     enddo
-     write(*,'(x)')
-  enddo
+  i = random_uniform(1,idm)
+  j = random_uniform(1,jdm)
+  write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
-#define ADVECT_EITVEL_OPT3
 #ifdef ADVECT_EITVEL_OPT3
   write(*,*) "OPT3: eitvel"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -290,13 +277,9 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'out: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(2(e14.6,a)$)') utotm(i,j), ",", vtotm(i,j), '|'
-     enddo
-     write(*,'(x)')
-  enddo
+  i = random_uniform(1,idm)
+  j = random_uniform(1,jdm)
+  write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
 end program advect_eitvel

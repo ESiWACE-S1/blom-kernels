@@ -70,7 +70,7 @@ target_link_options(options_flags INTERFACE
   >
 )
 
-add_library(loop_utils OBJECT wallclock.c wallclock.F90)
+add_library(loop_utils OBJECT wallclock.c wallclock.F90 random.F90)
 
 add_executable(advect_pbmin            $<TARGET_OBJECTS:loop_utils> advect_pbmin.F90)
 add_executable(advect_eitvel           $<TARGET_OBJECTS:loop_utils> advect_eitvel.F90)
