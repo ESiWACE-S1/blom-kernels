@@ -2,15 +2,36 @@ cmake_minimum_required(VERSION 3.20)
 
 project(blom-benchmarks VERSION 1.0.0 LANGUAGES C Fortran)
 
+option(WITH_FLAGS_AVX2 "flag" ON)
+option(WITH_FLAGS_NOPREC_DIV "flag" ON)
+option(WITH_FLAGS_UNROLL "flag" ON)
+option(WITH_FLAGS_PREFETCH "flag" ON)
+
+option(ADVECT_EITVEL_OPT1 "enable opt1 within advect_eitvel" ON)
+option(ADVECT_EITVEL_OPT2 "enable opt2 within advect_eitvel" ON)
+option(ADVECT_EITVEL_OPT3 "enable opt3 within advect_eitvel" ON)
 #option(WITH_ACC "compile with OpenACC" OFF)
 #option(WITH_ACC_CPU "compile with OpenACC multicore" OFF)
 # https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
 add_library(options_flags INTERFACE)
+target_compile_definitions(options_flags INTERFACE
+    $<$<BOOL:${ADVECT_EITVEL_OPT1}>:ADVECT_EITVEL_OPT1>
+    $<$<BOOL:${ADVECT_EITVEL_OPT2}>:ADVECT_EITVEL_OPT2>
+    $<$<BOOL:${ADVECT_EITVEL_OPT3}>:ADVECT_EITVEL_OPT3>
+  )
 target_compile_options(options_flags INTERFACE
   # or use $<COMPILE_LANG_AND_ID:language,compiler_ids>
+  -g
   $<$<Fortran_COMPILER_ID:Intel>:
     -O3
+    # https://developer.amd.com/wp-content/resources/Compiler%20Options%20Quick%20Ref%20Guide%20for%20AMD%20EPYC%207xx2%20Series%20Processors.pdf
+    $<$<BOOL:${WITH_FLAGS_AVX2}>:     -march=core-avx2 >
+    $<$<BOOL:${WITH_FLAGS_NOPREC_DIV}>:-no-prec-div >
+    $<$<BOOL:${WITH_FLAGS_UNROLL}>:   -unroll-aggressive >
+    $<$<BOOL:${WITH_FLAGS_PREFETCH}>: -qopt-prefetch >
+
+    -qopenmp
    >
 
    $<$<Fortran_COMPILER_ID:GNU>:
@@ -36,6 +57,9 @@ target_compile_options(options_flags INTERFACE
   )
 
 target_link_options(options_flags INTERFACE
+  $<$<Fortran_COMPILER_ID:Intel>:
+    -qopenmp
+    >
   $<$<Fortran_COMPILER_ID:PGI>:
     $<$<BOOL:${WITH_ACC}>:
       -acc -ta=tesla:cc80
@@ -50,7 +74,9 @@ add_library(loop_utils OBJECT wallclock.c wallclock.F90)
 
 add_executable(advect_pbmin            $<TARGET_OBJECTS:loop_utils> advect_pbmin.F90)
 add_executable(advect_eitvel           $<TARGET_OBJECTS:loop_utils> advect_eitvel.F90)
+add_executable(advect_eitvel_opt1      $<TARGET_OBJECTS:loop_utils> advect_eitvel_opt1.F90)
 
-target_link_libraries(advect_pbmin     options_flags)
-target_link_libraries(advect_eitvel    options_flags)
+target_link_libraries(advect_pbmin       options_flags)
+target_link_libraries(advect_eitvel      options_flags)
+target_link_libraries(advect_eitvel_opt1 options_flags)
 
