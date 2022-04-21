@@ -248,9 +248,9 @@ program advect_eitvel
   delta=0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
-     do j=-1,jj+2
-        do i=0,ii+2
-           do k=1,kk
+     do k=1,kk
+        do j=-1,jj+2
+           do i=0,ii+2
               utotm_=u(i,j,k+mm) &
                    +(ubflxs_p(i,j,m)*dlt/pbu(i,j,m)&
                    +umfltd(i,j,k+mm)/(max(onemm,dpu(i,j,k+nn)))&
@@ -259,10 +259,8 @@ program advect_eitvel
            enddo
            utotm(i,j) = utotm_
         enddo
-     enddo
-     do j=0,jj+2
-        do i=-1,ii+2
-           do k=1,kk
+        do j=0,jj+2
+           do i=-1,ii+2
               vtotm_=v(i,j,k+mm)&
                    +(vbflxs_p(i,j,m)*dlt/pbv(i,j,m)&
                    +vmfltd(i,j,k+mm)/(max(onemm,dpv(i,j,k+nn)))&
