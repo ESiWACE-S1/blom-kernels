@@ -179,67 +179,6 @@ program advect_eitvel
   write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
-#ifdef ADVECT_EITVEL_OPT2
-  write(*,*) "OPT2: eitvel"
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  write(*,*) "full loops+gather div: iterating over",MAX_ITERATIONS, " iterations..."
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  delta=0.0
-  do n_it=1, MAX_ITERATIONS
-     t1=wallclock()
-     do k=1,kk
-        km=k+mm
-        kn=k+nn
-        !
-        ! --- --- advective and diffusive velocity at mid time level
-        !
-        do j=-1,jj+2
-           do i=0,ii+2
-              utotm(i,j)=u(i,j,km) &
-                   +(ubflxs_p(i,j,m)*dlt/pbu(i,j,m)&
-                   +umfltd(i,j,km)/(max(onemm,dpu(i,j,kn)))&
-                   *(delt1*scuy(i,j)))
-              utotm(i,j)=max(-umax(i,j),min(umax(i,j),utotm(i,j)))
-           enddo
-        enddo
-        do j=0,jj+2
-           do i=-1,ii+2
-              vtotm(i,j)=v(i,j,km)&
-                   +(vbflxs_p(i,j,m)*dlt/pbv(i,j,m)&
-                   +vmfltd(i,j,km)/(max(onemm,dpv(i,j,kn)))&
-                   *(delt1*scvx(i,j)))
-              vtotm(i,j)=max(-vmax(i,j),min(vmax(i,j),vtotm(i,j)))
-           enddo
-        enddo
-        !
-        !!     call remap_eitvel(scuy,scvx,scp2i,scp2,pbmin,   &
-        !!                            pbu(1-nbdy,1-nbdy,n),pbv(1-nbdy,1-nbdy,n),  &
-        !!                            p(1-nbdy,1-nbdy,k+1),utotm,vtotm,delt1,1, &
-        !!                            dp(1-nbdy,1-nbdy,kn), &
-        !!                            temp(1-nbdy,1-nbdy,kn), &
-        !!                            saln(1-nbdy,1-nbdy,kn), &
-        !!                            uflx(1-nbdy,1-nbdy,km), &
-        !!                            vflx(1-nbdy,1-nbdy,km), &
-        !!                            utflx(1-nbdy,1-nbdy,km), &
-        !!                            vtflx(1-nbdy,1-nbdy,km), &
-        !!                            usflx(1-nbdy,1-nbdy,km), &
-        !!                            vsflx(1-nbdy,1-nbdy,km) &
-        !!#ifdef TRC
-        !!                           ,kn,trc &
-        !!#endif
-        !!                           )
-        !
-     enddo
-     delta=delta+(wallclock()-t1)
-  end do
-  write(*,*) "done"
-  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
-
-  i = random_uniform(1,idm)
-  j = random_uniform(1,jdm)
-  write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
-#endif
-
 #ifdef ADVECT_EITVEL_OPT3
   write(*,*) "OPT3: eitvel"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -253,8 +192,8 @@ program advect_eitvel
            do i=0,ii+2
               utotm_=u(i,j,k+mm) &
                    +(ubflxs_p(i,j,m)*dlt/pbu(i,j,m)&
-                   +umfltd(i,j,k+mm)/(max(onemm,dpu(i,j,k+nn)))&
-                   *(delt1*scuy(i,j)))
+                   +umfltd(i,j,k+mm)/max(onemm,dpu(i,j,k+nn)))&
+                   /(delt1*scuy(i,j))
               utotm_=max(-umax(i,j),min(umax(i,j),utotm_))
            enddo
            utotm(i,j) = utotm_
@@ -263,8 +202,8 @@ program advect_eitvel
            do i=-1,ii+2
               vtotm_=v(i,j,k+mm)&
                    +(vbflxs_p(i,j,m)*dlt/pbv(i,j,m)&
-                   +vmfltd(i,j,k+mm)/(max(onemm,dpv(i,j,k+nn)))&
-                   *(delt1*scvx(i,j)))
+                   +vmfltd(i,j,k+mm)/max(onemm,dpv(i,j,k+nn)))&
+                   /(delt1*scvx(i,j))
               vtotm_=max(-vmax(i,j),min(vmax(i,j),vtotm_))
            enddo
            vtotm(i,j) = vtotm_

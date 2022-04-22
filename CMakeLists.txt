@@ -8,7 +8,7 @@ option(WITH_FLAGS_UNROLL "flag" ON)
 option(WITH_FLAGS_PREFETCH "flag" ON)
 
 option(ADVECT_EITVEL_OPT1 "enable opt1 within advect_eitvel" ON)
-option(ADVECT_EITVEL_OPT2 "enable opt2 within advect_eitvel" ON)
+# removed option(ADVECT_EITVEL_OPT2 "enable opt2 within advect_eitvel" ON)
 option(ADVECT_EITVEL_OPT3 "enable opt3 within advect_eitvel" ON)
 #option(WITH_ACC "compile with OpenACC" OFF)
 #option(WITH_ACC_CPU "compile with OpenACC multicore" OFF)
@@ -17,7 +17,6 @@ option(ADVECT_EITVEL_OPT3 "enable opt3 within advect_eitvel" ON)
 add_library(options_flags INTERFACE)
 target_compile_definitions(options_flags INTERFACE
     $<$<BOOL:${ADVECT_EITVEL_OPT1}>:ADVECT_EITVEL_OPT1>
-    $<$<BOOL:${ADVECT_EITVEL_OPT2}>:ADVECT_EITVEL_OPT2>
     $<$<BOOL:${ADVECT_EITVEL_OPT3}>:ADVECT_EITVEL_OPT3>
   )
 target_compile_options(options_flags INTERFACE
