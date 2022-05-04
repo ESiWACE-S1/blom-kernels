@@ -9,3 +9,4 @@ Makefile
 *.a
 advect_eitvel
 advect_eitvel_opt1
+remap_zero

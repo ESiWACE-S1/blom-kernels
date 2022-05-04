@@ -74,8 +74,10 @@ add_library(loop_utils OBJECT wallclock.c wallclock.F90 random.F90)
 add_executable(advect_pbmin            $<TARGET_OBJECTS:loop_utils> advect_pbmin.F90)
 add_executable(advect_eitvel           $<TARGET_OBJECTS:loop_utils> advect_eitvel.F90)
 add_executable(advect_eitvel_opt1      $<TARGET_OBJECTS:loop_utils> advect_eitvel_opt1.F90)
+add_executable(remap_zero              $<TARGET_OBJECTS:loop_utils> remap_zero.F90)
 
 target_link_libraries(advect_pbmin       options_flags)
 target_link_libraries(advect_eitvel      options_flags)
 target_link_libraries(advect_eitvel_opt1 options_flags)
+target_link_libraries(remap_zero         options_flags)
 
