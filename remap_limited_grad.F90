@@ -21,6 +21,10 @@ program remap_zero
   real :: dxi, dyi, dpsw, dps, dpc, dpe, dpnw, dpn, dpne, dpse, dpw, dgmx, dfmx, dfmn, q, q1, q2, q3, q4, tgmx, tgmn, tfmx, tfmn
   real :: sgmx, sgmn, sfmx, sfmn
   integer :: mrg
+  ! bigrid
+  logical :: lperiodi, lperiodj, larctic
+  integer :: nreg
+
   ! masks
   integer, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: ip, iu, iv, iq
   integer :: ip_
@@ -40,6 +44,210 @@ program remap_zero
   kk = kdm
   mrg = 0
   dpeps = 1.0
+  ! bigrid init
+  nreg = 1 ! periodic domain in i-index
+  larctic=.false.
+  lperiodi=.true.
+  lperiodj=.false.
+  depth=0.0
+  depth(:,2-nbdy:jdm+nbdy)=1.0 ! dummy fixed depth (/=0)
+  depth(:,1)=0.0 ! dummy fixed depth (/=0)
+  depth(:,jdm)=0.0 ! dummy fixed depth (/=0)
+  !call xctilr(depth,1,1, nbdy,nbdy, halo_ps)
+!! --- is the domain periodic in i-index?
+!      depmax=0.0
+!      if     (i0+ii.eq.idm) then
+!        do j= 1,jj
+!          depmax=max(depmax,depth(ii,j))
+!        enddo
+!      endif
+!      lperiodi=depmax.gt.0.0
+!! --- is the domain periodic in j-index?
+!      depmax=0.0
+!      if     (j0+jj.eq.jdm) then
+!        do i= 1,ii
+!          depmax=max(depmax,depth(i,jj))
+!        enddo
+!      endif
+!      larctic=depmax.gt.0.0 .and. nreg.eq.2
+!      lperiodj=depmax.gt.0.0 .and. nreg.ne.2
+  ! --- allow for non-periodic and non-arctic boundaries (part I).
+  if     (.not.lperiodj .and. j0.eq.0) then
+     ! ---   south boundary is all land.
+     do j=1-nbdy,0
+        do i=1-nbdy,ii+nbdy
+           depth(i,j) = 0.0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodj .and. .not.larctic .and. j0+jj.eq.jdm) then
+     ! ---   north boundary is all land.
+     do j=jj+1,jj+nbdy
+        do i=1-nbdy,ii+nbdy
+           depth(i,j) = 0.0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodi .and. i0.eq.0) then
+     ! ---   west boundary is all land.
+     do j=1-nbdy,jj+nbdy
+        do i=1-nbdy,0
+           depth(i,j) = 0.0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodi .and. i0+ii.eq.idm) then
+     ! ---   east boundary is all land.
+     do j=1-nbdy,jj+nbdy
+        do i=ii+1,ii+nbdy
+           depth(i,j) = 0.0
+        enddo
+     enddo
+  endif
+  ! --- start out with masks as land everywhere
+  !$OMP PARALLEL DO PRIVATE(i)
+  do j=1-nbdy,jdm+nbdy
+     do i=1-nbdy,idm+nbdy
+        ip(i,j)=0
+        iq(i,j)=0
+        iu(i,j)=0
+        iv(i,j)=0
+        util1(i,j)=0.
+        util2(i,j)=0.
+        util3(i,j)=0.
+     enddo
+  enddo
+  !$OMP END PARALLEL DO
+  !
+  ! --- mass points are defined where water depth is greater than zero
+  !$OMP PARALLEL DO PRIVATE(i)
+  do j=1-nbdy,jj+nbdy
+     do i=1-nbdy,ii+nbdy
+        if (depth(i,j).gt.0.) then
+           ip(i,j)=1
+        endif
+     enddo
+  enddo
+  !$OMP END PARALLEL DO
+  !
+  ! --- u,v points are located halfway between any 2 adjoining mass points
+  ! --- 'interior' q points require water on all 4 sides.
+  ! --- 'promontory' q points require water on 3 (or at least 2
+  ! --- diametrically opposed) sides
+  !$OMP PARALLEL DO PRIVATE(i)
+  do j=1,jj
+     do i=1,ii
+        if (ip(i-1,j).gt.0.and.ip(i,j).gt.0) then
+           iu(i,j)=1
+        endif
+        if (ip(i,j-1).gt.0.and.ip(i,j).gt.0) then
+           iv(i,j)=1
+        endif
+        if (min(ip(i,j),ip(i-1,j),ip(i,j-1),ip(i-1,j-1)).gt.0) then
+           iq(i,j)=1
+        elseif ((ip(i  ,j).gt.0.and.ip(i-1,j-1).gt.0).or. &
+           &            (ip(i-1,j).gt.0.and.ip(i  ,j-1).gt.0)    ) then
+           iq(i,j)=1
+        endif
+        util1(i,j)=iu(i,j)
+        util2(i,j)=iv(i,j)
+        util3(i,j)=iq(i,j)
+     enddo
+  enddo
+  !$OMP END PARALLEL DO
+  if(lperiodi) then
+     do j= 1-nbdy,jj+nbdy
+        do i= 1,nbdy
+           util1(i-nbdy,j) = util1(ii-nbdy+i,j)
+           util2(i-nbdy,j) = util2(ii-nbdy+i,j)
+           util3(i-nbdy,j) = util3(ii-nbdy+i,j)
+           util1(ii+i,j) = util1(i,j)
+           util2(ii+i,j) = util2(i,j)
+           util3(ii+i,j) = util3(i,j)
+        enddo
+     end do
+  end if
+  !!call xctilr(util1,1,1, nbdy,nbdy, halo_us)
+  !!call xctilr(util2,1,1, nbdy,nbdy, halo_vs)
+  !!call xctilr(util3,1,1, nbdy,nbdy, halo_qs)
+  !$OMP PARALLEL DO PRIVATE(i)
+  do j= 1-nbdy,jj+nbdy
+     do i= 1-nbdy,ii+nbdy
+        iu(i,j)=nint(util1(i,j))
+        iv(i,j)=nint(util2(i,j))
+        iq(i,j)=nint(util3(i,j))
+     enddo
+  enddo
+  !$OMP END PARALLEL DO
+  !
+  ! --- allow for non-periodic and non-arctic boundaries (part II).
+  if     (.not.lperiodj .and. j0.eq.0) then
+     ! ---   south boundary is all land.
+     do j=1-nbdy,0
+        do i=1-nbdy,ii+nbdy
+           iq(i,j) = 0
+           iu(i,j) = 0
+           iv(i,j) = 0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodj .and. .not.larctic .and. j0+jj.eq.jdm) then
+     ! ---   north boundary is all land.
+     do j=jj+1,jj+nbdy
+        do i=1-nbdy,ii+nbdy
+           iq(i,j) = 0
+           iu(i,j) = 0
+           iv(i,j) = 0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodi .and. i0.eq.0) then
+     ! ---   west boundary is all land.
+     do j=1-nbdy,jj+nbdy
+        do i=1-nbdy,0
+           iq(i,j) = 0
+           iu(i,j) = 0
+           iv(i,j) = 0
+        enddo
+     enddo
+  endif
+  !
+  if     (.not.lperiodi .and. i0+ii.eq.idm) then
+     ! ---   east boundary is all land.
+     do j=1-nbdy,jj+nbdy
+        do i=ii+1,ii+nbdy
+           iq(i,j) = 0
+           iu(i,j) = 0
+           iv(i,j) = 0
+        enddo
+     enddo
+  endif
+
+  write(*,*) 'nreg',nreg
+  write(*,*) 'lperiodi',lperiodi
+  write(*,*) 'lperiodj',lperiodj
+  write(*,*) 'larctic',larctic
+  !do j=1-nbdy,jdm+nbdy
+  !   write(*,'(2i3,a$)') j, 1, 'depth: '
+  !   do i=1-nbdy,idm+nbdy
+  !      write(*,'(1(i1,a)$)') nint(depth(i,j)), "|"
+  !   enddo
+  !   write(*,'(x)')
+  !enddo
+  !do j=1-nbdy,jdm+nbdy
+  !   write(*,'(2i3,a$)') j, 1, ': '
+  !   do i=1-nbdy,idm+nbdy
+  !      write(*,'(4(i1,a)$)') ip(i,j), ",", iq(i,j), ",", iu(i,j) &
+  !           , ",", iv(i,j), "|"
+  !   enddo
+  !   write(*,'(x)')
+  !enddo
+  pbmin = 1.0
 
   write(*,*) "COMPUTE: remap_zero"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
