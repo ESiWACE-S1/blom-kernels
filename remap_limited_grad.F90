@@ -10,9 +10,9 @@ program remap_zero
   integer :: l,i,j,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne
   integer :: ii,jj,kk, i0,j0
   integer, parameter :: ms = 10
-  integer :: isp(1-nbdy:jdm+nbdy-1)
-  integer :: ifp(-1:jdm+2, ms) ! first section index per section
-  integer :: ilp(-1:jdm+2, ms) ! last section index per section
+  integer :: isp(1-nbdy:jdm+nbdy)
+  integer :: ifp(1-nbdy:jdm+nbdy, ms) ! first section index per section
+  integer :: ilp(1-nbdy:jdm+nbdy, ms) ! last section index per section
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: dp, pup, plo
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: fdu, fdv, ftu, ftv, fsu, fsv, cu, cv
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: pbmin
@@ -253,11 +253,7 @@ program remap_zero
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   write(*,*) "DEFAULT: iterating over",MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  do j=-1,jj+2
-     isp(j) = 1
-     ifp(j,1) = -1
-     ilp(j,1) = ii+2
-  end do
+  call indxi(ip,ifp,ilp,isp)
 
   delta=0.0
   do n_it=1, MAX_ITERATIONS
@@ -391,12 +387,6 @@ program remap_zero
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   write(*,*) "opt1: iterating over",MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  do j=-1,jj+2
-     isp(j) = 1
-     ifp(j,1) = -1
-     ilp(j,1) = ii+2
-  end do
-
   delta=0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
@@ -528,5 +518,54 @@ program remap_zero
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 #endif
+
+contains
+  subroutine indxi(ipt,if,il,is)
+    implicit none
+
+    integer, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: ipt
+    integer, dimension (1-nbdy:jdm+nbdy,ms) :: if,il
+    integer, dimension (1-nbdy:jdm+nbdy) :: is
+    ! --- input array ipt contains 1 at grid point locations, 0 elsewhere
+    ! --- output is arrays if, il, is  where
+    ! --- if(j,k) gives row index of first point in column j for k-th section
+    ! --- il(j,k) gives row index of last point
+    ! --- is(j) gives number of sections in column j (maximum: ms)
+    integer i,j,k,last
+    do j=1-nbdy,jj+nbdy
+       is(j) = 0
+       do k=1,ms
+          if(j,k) = 0
+          il(j,k) = 0
+       enddo
+       k=1
+       last = ipt(1-nbdy,j)
+       if     (last .eq. 1) then
+          if(j,k) = 1-nbdy
+       endif
+       do i=2-nbdy,ii+nbdy
+          if      (last .eq. 1 .and. ipt(i,j) .eq. 0) then
+             il(j,k) = i-1
+             k = k+1
+          elseif (last .eq. 0 .and. ipt(i,j) .eq. 1) then
+             if     (k .gt. ms) then
+                write(*,'(a,i5)')  'indxi problem on proc ', 0
+                write(*,'(a,2i5)') ' error in indxi -- ms too small at i,j =',i0+i,j0+j
+                stop '(indxi)'
+             endif
+             if(j,k) = i
+          endif
+          last = ipt(i,j)
+       enddo
+       if     (last .eq. 1) then
+          il(j,k) = ii+nbdy
+          is(j) = k
+       else
+          is(j) = k-1
+       endif
+    enddo
+    return
+  end subroutine indxi
+
 
 end program remap_zero
