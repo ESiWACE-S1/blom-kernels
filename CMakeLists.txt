@@ -76,10 +76,12 @@ add_executable(advect_eitvel           $<TARGET_OBJECTS:loop_utils> advect_eitve
 add_executable(advect_eitvel_opt1      $<TARGET_OBJECTS:loop_utils> advect_eitvel_opt1.F90)
 add_executable(remap_zero              $<TARGET_OBJECTS:loop_utils> remap_zero.F90)
 add_executable(remap_limited_grad      $<TARGET_OBJECTS:loop_utils> remap_limited_grad.F90)
+add_executable(remap_vel_u             $<TARGET_OBJECTS:loop_utils> remap_vel_u.F90)
 
 target_link_libraries(advect_pbmin       options_flags)
 target_link_libraries(advect_eitvel      options_flags)
 target_link_libraries(advect_eitvel_opt1 options_flags)
 target_link_libraries(remap_zero         options_flags)
 target_link_libraries(remap_limited_grad options_flags)
+target_link_libraries(remap_vel_u        options_flags)
 
