@@ -244,6 +244,43 @@ program remap_vel_u
   write(*,*) "DEFAULT: iterating over",MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call indxi(iu,ifu,ilu,isu)
+
+  call init_seed
+  do j=1-nbdy,jdm+nbdy
+     do i=1-nbdy,idm+nbdy
+       dp(i,j) = random_uniform(-1.0, 1.0)
+       pup(i,j) = random_uniform(-1.0, 1.0)
+       plo(i,j) = random_uniform(-1.0, 1.0)
+       fdu(i,j) = random_uniform(-1.0, 1.0)
+       fdv(i,j) = random_uniform(-1.0, 1.0)
+       ftu(i,j) = random_uniform(-1.0, 1.0)
+       ftv(i,j) = random_uniform(-1.0, 1.0)
+       fsu(i,j) = random_uniform(-1.0, 1.0)
+       fsv(i,j) = random_uniform(-1.0, 1.0)
+       cu(i,j) = random_uniform(-1.0, 1.0)
+       cv(i,j) = random_uniform(-1.0, 1.0)
+       dx(i,j) = random_uniform(-1.0, 1.0)
+       dy(i,j) = random_uniform(-1.0, 1.0)
+       xd(i,j) = random_uniform(-1.0, 1.0)
+       yd(i,j) = random_uniform(-1.0, 1.0)
+       tx(i,j) = random_uniform(-1.0, 1.0)
+       ty(i,j) = random_uniform(-1.0, 1.0)
+       temp(i,j) = random_uniform(-1.0, 1.0)
+       td(i,j) = random_uniform(-1.0, 1.0)
+       sx(i,j) = random_uniform(-1.0, 1.0)
+       sy(i,j) = random_uniform(-1.0, 1.0)
+       saln(i,j) = random_uniform(-1.0, 1.0)
+       sd(i,j) = random_uniform(-1.0, 1.0)
+       cuc(i,j) = random_uniform(-1.0, 1.0)
+       cvc(i,j) = random_uniform(-1.0, 1.0)
+       scp2(i,j) = random_uniform(-1.0, 1.0)
+       scp2i(i,j) = random_uniform(-1.0, 1.0)
+       pbu(i,j) = random_uniform(-1.0, 1.0)
+       uflx(i,j) = random_uniform(-1.0, 1.0)
+       utflx(i,j) = random_uniform(-1.0, 1.0)
+       usflx(i,j) = random_uniform(-1.0, 1.0)
+    end do
+ end do
   
   delta=0.0
   do n_it=1, MAX_ITERATIONS

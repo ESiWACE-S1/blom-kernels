@@ -20,6 +20,7 @@ program remap_zero
 
   integer, parameter :: MAX_ITERATIONS=100000
   integer :: n_it
+  integer, parameter :: ONE = 1
   !https://stackoverflow.com/a/6880672
   real(8)::t1,delta, delta_orig
 
@@ -91,8 +92,8 @@ program remap_zero
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  i = random_uniform(1,idm)
-  j = random_uniform(1,jdm)
+  i = random_uniform(ONE,idm)
+  j = random_uniform(ONE,jdm)
   write(*,'(a,2i8,10e14.6)') 'out', i,j, dp(i,j), pup(i,j),cu(i,j), cv(i,j)&
        , fdu(i,j) &
        , fdv(i,j) &
@@ -132,8 +133,8 @@ program remap_zero
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 #endif
-     i = random_uniform(1,idm)
-     j = random_uniform(1,jdm)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
      write(*,'(a,2i8,10e14.6)') 'out', i,j, dp(i,j), pup(i,j),cu(i,j), cv(i,j)&
           , fdu(i,j) &
           , fdv(i,j) &
@@ -201,8 +202,8 @@ program remap_zero
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 #endif
-     i = random_uniform(1,idm)
-     j = random_uniform(1,jdm)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
      write(*,'(a,2i8,10e14.6)') 'out', i,j, dp(i,j), pup(i,j),cu(i,j), cv(i,j)&
           , fdu(i,j) &
           , fdv(i,j) &

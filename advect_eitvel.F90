@@ -25,6 +25,7 @@ program advect_eitvel
 
   integer, parameter :: MAX_ITERATIONS=1000
   integer :: n_it
+  integer, parameter :: ONE = 1
   !https://stackoverflow.com/a/6880672
   real(8)::t1,delta, delta_orig
 
@@ -114,8 +115,8 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  i = random_uniform(1,idm)
-  j = random_uniform(1,jdm)
+  i = random_uniform(ONE,idm)
+  j = random_uniform(ONE,jdm)
   write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 
 #ifdef ADVECT_EITVEL_OPT1
@@ -174,8 +175,8 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  i = random_uniform(1,idm)
-  j = random_uniform(1,jdm)
+  i = random_uniform(ONE,idm)
+  j = random_uniform(ONE,jdm)
   write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
@@ -214,8 +215,8 @@ program advect_eitvel
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
-  i = random_uniform(1,idm)
-  j = random_uniform(1,jdm)
+  i = random_uniform(ONE,idm)
+  j = random_uniform(ONE,jdm)
   write(*,*) 'random', i,j, utotm(i,j), vtotm(i,j)
 #endif
 
