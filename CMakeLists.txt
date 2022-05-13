@@ -10,7 +10,7 @@ option(WITH_FLAGS_PREFETCH "flag" ON)
 option(ADVECT_EITVEL_OPT1 "enable opt1 within advect_eitvel" ON)
 # removed option(ADVECT_EITVEL_OPT2 "enable opt2 within advect_eitvel" ON)
 option(ADVECT_EITVEL_OPT3 "enable opt3 within advect_eitvel" ON)
-#option(WITH_ACC "compile with OpenACC" OFF)
+option(WITH_ACC "compile with OpenACC" OFF)
 #option(WITH_ACC_CPU "compile with OpenACC multicore" OFF)
 # https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
@@ -85,3 +85,10 @@ target_link_libraries(remap_zero         options_flags)
 target_link_libraries(remap_limited_grad options_flags)
 target_link_libraries(remap_vel_u        options_flags)
 
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/Fypp.cmake)
+set(FYPP_FLAGS "")
+if(WITH_ACC)
+	set(FYPP_FLAGS ${FYPP_FLAGS} --define=LOOP_ACC)
+endif()
+PreProcessFyppFiles(
+)
