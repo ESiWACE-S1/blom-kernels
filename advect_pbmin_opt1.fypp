@@ -261,7 +261,9 @@ program advect_pbmin
   delta = 0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
-     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP PARALLEL DO default(none) &
+     !$OMP& shared(ii,jj,kk,isp,ifp,ilp,iu,iv,ip,p,pbmin) &
+     !$OMP& PRIVATE( &
      !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
      do j=-1,jj+2
         do l=1,isp(j)
