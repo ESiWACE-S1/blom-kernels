@@ -1,5 +1,11 @@
+! ;;; -*- mode: fortran; -*-
+! vim: ft=fortran :
+#:mute
+#:include 'macros.fypp'
+#:endmute
 program advect_pbmin
   use wallclock_mod
+  use random_mod
   implicit none
   integer, parameter :: nbdy = 3
   integer, parameter :: idm = 64
@@ -14,6 +20,7 @@ program advect_pbmin
   integer :: ilp(-1:jdm+2, ms) ! last section index per section
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: pbmin
   real, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy, kdm+1) :: p
+  integer, parameter :: ONE=1
 
   ! masks
   integer, dimension(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: ip, iu, iv, iq
@@ -101,31 +108,37 @@ program advect_pbmin
      enddo
   endif
   ! --- start out with masks as land everywhere
+  !$OMP PARALLEL DO PRIVATE(i)
   do j=1-nbdy,jdm+nbdy
      do i=1-nbdy,idm+nbdy
-        ip(i,j)=0
-        iq(i,j)=0
-        iu(i,j)=0
-        iv(i,j)=0
-        util1(i,j)=0.
-        util2(i,j)=0.
-        util3(i,j)=0.
+  ip(i,j)=0
+  iq(i,j)=0
+  iu(i,j)=0
+  iv(i,j)=0
+  util1(i,j)=0.
+  util2(i,j)=0.
+  util3(i,j)=0.
      enddo
   enddo
+  !$OMP END PARALLEL DO
+
   !
   ! --- mass points are defined where water depth is greater than zero
+  !$OMP PARALLEL DO PRIVATE(i)
   do j=1-nbdy,jj+nbdy
      do i=1-nbdy,ii+nbdy
-        if (depth(i,j).gt.0.) then
-           ip(i,j)=1
-        endif
+  if (depth(i,j).gt.0.) then
+    ip(i,j)=1
+  endif
      enddo
   enddo
+  !$OMP END PARALLEL DO
   !
   ! --- u,v points are located halfway between any 2 adjoining mass points
   ! --- 'interior' q points require water on all 4 sides.
   ! --- 'promontory' q points require water on 3 (or at least 2
   ! --- diametrically opposed) sides
+  !$OMP PARALLEL DO PRIVATE(i)
   do j=1,jj
      do i=1,ii
         if (ip(i-1,j).gt.0.and.ip(i,j).gt.0) then
@@ -145,6 +158,7 @@ program advect_pbmin
         util3(i,j)=iq(i,j)
      enddo
   enddo
+  !$OMP END PARALLEL DO
   if(lperiodi) then
      do j= 1-nbdy,jj+nbdy
         do i= 1,nbdy
@@ -160,13 +174,15 @@ program advect_pbmin
   !!call xctilr(util1,1,1, nbdy,nbdy, halo_us)
   !!call xctilr(util2,1,1, nbdy,nbdy, halo_vs)
   !!call xctilr(util3,1,1, nbdy,nbdy, halo_qs)
-  do j= 1-nbdy,jj+nbdy
-     do i= 1-nbdy,ii+nbdy
+  !$OMP PARALLEL DO PRIVATE(i)
+  do j=1-nbdy,jj+nbdy
+     do i=1-nbdy,ii+nbdy
         iu(i,j)=nint(util1(i,j))
         iv(i,j)=nint(util2(i,j))
         iq(i,j)=nint(util3(i,j))
      enddo
   enddo
+  !$OMP END PARALLEL DO
   !
   ! --- allow for non-periodic and non-arctic boundaries (part II).
   if     (.not.lperiodj .and. j0.eq.0) then
@@ -232,7 +248,6 @@ program advect_pbmin
   !   enddo
   !   write(*,'(x)')
   !enddo
-
   write(*,*) "COMPUTE: pbmin"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   write(*,*) "DEFAULT: iterating over",MAX_ITERATIONS, " iterations..."
@@ -246,6 +261,8 @@ program advect_pbmin
   delta = 0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
+     !$OMP PARALLEL DO PRIVATE( &
+     !$OMP&  l,i,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne)
      do j=-1,jj+2
         do l=1,isp(j)
            do i=max(-1,ifp(j,l)),min(ii+2,ilp(j,l))
@@ -268,7 +285,11 @@ program advect_pbmin
            enddo
         enddo
      enddo
-     delta= delta + (wallclock()-t1)
+     !$OMP END PARALLEL DO
+     delta = delta + (wallclock()-t1)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
+     write(*,*) 'out random', i,j, pbmin(i,j)
   end do
   delta_orig=delta
   write(*,*) "done"
@@ -282,55 +303,16 @@ program advect_pbmin
      write(*,'(x)')
   enddo
 
-  write(*,*) "COMPUTE: pbmin"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  write(*,*) "Full loops: iterating over",MAX_ITERATIONS, " iterations..."
+  write(*,*) "Full loops+temp: iterating over" &
+      ,MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  delta = 0.0
+  delta= 0.0
   do n_it=1, MAX_ITERATIONS
-     t1=wallclock()
-     do j=-1,jj+2
-        do i=-1,ii+2
-           iw=i-iu(i  ,j)
-           ie=i+iu(i+1,j)
-           js=j-iv(i,j  )
-           jn=j+iv(i,j+1)
-           isw=i*(1-ip(iw,js))+iw*ip(iw,js)
-           jsw=j*(1-ip(iw,js))+js*ip(iw,js)
-           ise=i*(1-ip(ie,js))+ie*ip(ie,js)
-           jse=j*(1-ip(ie,js))+js*ip(ie,js)
-           inw=i*(1-ip(iw,jn))+iw*ip(iw,jn)
-           jnw=j*(1-ip(iw,jn))+jn*ip(iw,jn)
-           ine=i*(1-ip(ie,jn))+ie*ip(ie,jn)
-           jne=j*(1-ip(ie,jn))+jn*ip(ie,jn)
-           pbmin(i,j)= &
-                min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
-                    p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
-                    p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
-        enddo
-     enddo
-     delta=delta + (wallclock()-t1)
-  end do
-  write(*,*) "done"
-  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
-
-  do j=1-nbdy,jdm+nbdy
-     write(*,'(2i3,a$)') j, 1, 'out: '
-     do i=1-nbdy,idm+nbdy
-        write(*,'(1(e14.6,a)$)') pbmin(i,j), "|"
-     enddo
-     write(*,'(x)')
-  enddo
-
-  write(*,*) "COMPUTE: pbmin"
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  write(*,*) "Full loops+temp: iterating over",MAX_ITERATIONS, " iterations..."
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  delta = 0.0
-  do n_it=1, MAX_ITERATIONS
-     t1=wallclock()
-     do j=-1,jj+2
-        do i=-1,ii+2
+      t1=wallclock()
+#:block loop_2D(i0='2-nbdy', i1='ii+nbdy-1', j0='2-nbdy', j1='jj+nbdy-1', private='iw,ie,js,jn,ip_,isw,jsw,ise,jse,inw,jnw,ine,jne' &
+               , shared='ii,jj,kk' &
+      , arrays='iu,iv,ip,p,pbmin') 
            iw=i-iu(i  ,j)
            ie=i+iu(i+1,j)
            js=j-iv(i,j  )
@@ -351,9 +333,11 @@ program advect_pbmin
                 min(p(isw,jsw,kk+1),p(i  ,js ,kk+1),p(ise,jse,kk+1), &
                     p(iw ,j  ,kk+1),p(i  ,j  ,kk+1),p(ie ,j  ,kk+1), &
                     p(inw,jnw,kk+1),p(i  ,jn ,kk+1),p(ine,jne,kk+1))
-        enddo
-     enddo
-     delta=delta + (wallclock()-t1)
+#:endblock loop_2D
+     delta=delta+(wallclock()-t1)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
+     write(*,*) 'out random', i,j, pbmin(i,j)
   end do
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
@@ -368,14 +352,16 @@ program advect_pbmin
 
   write(*,*) "COMPUTE: pbmin"
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  write(*,*) "Full loops+if: iterating over",MAX_ITERATIONS, " iterations..."
+  write(*,*) "Full loops+if: iterating over" &
+      ,MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  delta = 0.0
+  delta= 0.0
   do n_it=1, MAX_ITERATIONS
-     t1=wallclock()
-
-     do j=-1,jj+2
-        do i=-1,ii+2
+      t1=wallclock()
+!#:block loop_2D(i0='2-nbdy', i1='ii+nbdy-1', j0='2-nbdy', j1='jj+nbdy-1')
+#:block loop_2D(i0='2-nbdy', i1='ii+nbdy-1', j0='2-nbdy', j1='jj+nbdy-1', private='p_,iw,ie,js,jn' &
+               , shared='ii,jj,kk' &
+      , arrays='iu,iv,ip,p,pbmin') 
            p_ = huge(1.0)
            iw=iu(i  ,j)
            ie=iu(i+1,j)
@@ -400,9 +386,58 @@ program advect_pbmin
            end if
 
            pbmin(i,j) = p_
-        enddo
-     enddo
-     delta=delta + (wallclock()-t1)
+#:endblock loop_2D
+     delta=delta+(wallclock()-t1)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
+     write(*,*) 'out random', i,j, pbmin(i,j)
+  end do
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+
+  write(*,*) "COMPUTE: pbmin"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "Full loops+if+collapse: iterating over" &
+      ,MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  delta= 0.0
+  do n_it=1, MAX_ITERATIONS
+      t1=wallclock()
+!#:block loop_2D(i0='-1', i1='ii+2', j0='-1', j1='jj+2')
+#:block loop_2D(i0='-1', i1='ii+2', j0='-1', j1='jj+2' &
+               , shared='ii,jj,kk' &
+               , arrays='iu,iv,ip,p,pbmin' &
+               , private='p_,iw,ie,js,jn', collapse=True)
+           p_ = huge(1.0)
+           iw=iu(i  ,j)
+           ie=iu(i+1,j)
+           js=iv(i,j  )
+           jn=iv(i,j+1)
+           ! iw defined
+           if(iw /= 0) then
+              if(js /= 0 .and. ip(i-1,j-1) /= 0) p_ = min(p_, p(i-1,j-1, kk+1))
+              if(              ip(i-1,j  ) /= 0) p_ = min(p_, p(i-1,j  , kk+1))
+              if(jn /= 0 .and. ip(i-1,j+1) /= 0) p_ = min(p_, p(i-1,j+1, kk+1))
+           end if
+
+              if(js /= 0 .and. ip(i  ,j-1) /= 0) p_ = min(p_, p(i  ,j-1, kk+1))
+                                                 p_ = min(p_, p(i  ,j  , kk+1))
+              if(jn /= 0 .and. ip(i  ,j+1) /= 0) p_ = min(p_, p(i  ,j+1, kk+1))
+
+            ! ie defined
+           if(ie /= 0) then
+              if(js /= 0 .and. ip(i+1,j-1) /= 0) p_ = min(p_, p(i+1,j-1, kk+1))
+              if(              ip(i+1,j  ) /= 0) p_ = min(p_, p(i+1,j  , kk+1))
+              if(jn /= 0 .and. ip(i+1,j+1) /= 0) p_ = min(p_, p(i+1,j+1, kk+1))
+           end if
+
+           pbmin(i,j) = p_
+#:endblock loop_2D
+     delta=delta+(wallclock()-t1)
+     i = random_uniform(ONE,idm)
+     j = random_uniform(ONE,jdm)
+     write(*,*) 'out random', i,j, pbmin(i,j)
+
   end do
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta

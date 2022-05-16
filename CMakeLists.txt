@@ -31,6 +31,7 @@ target_compile_options(options_flags INTERFACE
     $<$<BOOL:${WITH_FLAGS_PREFETCH}>: -qopt-prefetch >
 
     -qopenmp
+    -qopt-report-phase=vec,loop -qopt-report=5
    >
 
    $<$<Fortran_COMPILER_ID:GNU>:
@@ -86,9 +87,13 @@ target_link_libraries(remap_limited_grad options_flags)
 target_link_libraries(remap_vel_u        options_flags)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/Fypp.cmake)
-set(FYPP_FLAGS "")
+set(FYPP_FLAGS )
 if(WITH_ACC)
 	set(FYPP_FLAGS ${FYPP_FLAGS} --define=LOOP_ACC)
 endif()
 PreProcessFyppFiles(
+  advect_pbmin_opt1.fypp
 )
+
+add_executable(advect_pbmin_opt1            $<TARGET_OBJECTS:loop_utils> advect_pbmin_opt1.F90)
+target_link_libraries(advect_pbmin_opt1     options_flags)
