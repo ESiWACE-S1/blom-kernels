@@ -93,7 +93,10 @@ if(WITH_ACC)
 endif()
 PreProcessFyppFiles(
   advect_pbmin_opt1.fypp
+  remap_vel_u_fypp.fypp
 )
 
 add_executable(advect_pbmin_opt1            $<TARGET_OBJECTS:loop_utils> advect_pbmin_opt1.F90)
 target_link_libraries(advect_pbmin_opt1     options_flags)
+add_executable(remap_vel_u_fypp             $<TARGET_OBJECTS:loop_utils> remap_vel_u_fypp.F90)
+target_link_libraries(remap_vel_u_fypp      options_flags)

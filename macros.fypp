@@ -1,4 +1,4 @@
-! ;;; -*- mode: fortran; -*-
+! ;;; -*- mode: f90; -*-
 ! vim: ft=fortran :
 #:def ranksuffix(RANK)
 $:'' if RANK == 0 else '(' + ':' + ',:' * (RANK - 1) + ')'
