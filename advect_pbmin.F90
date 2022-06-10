@@ -2,8 +2,16 @@ program advect_pbmin
   use wallclock_mod
   implicit none
   integer, parameter :: nbdy = 3
+#ifdef BLOM_CHANNEL_SMALL
   integer, parameter :: idm = 64
   integer, parameter :: jdm = 128
+#elif (defined BLOM_CHANNEL_MEDIUM)
+  integer, parameter :: idm = 128
+  integer, parameter :: jdm = 256
+#elif (defined BLOM_CHANNEL_LARGE)
+  integer, parameter :: idm = 208
+  integer, parameter :: jdm = 512
+#endif
   integer, parameter :: kdm = 53
 
   integer :: l,i,j,iw,ie,js,jn,isw,jsw,ise,jse,inw,jnw,ine,jne

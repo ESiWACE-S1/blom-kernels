@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.20)
 
 project(blom-benchmarks VERSION 1.0.0 LANGUAGES C Fortran)
 
+option(BLOM_CHANNEL_SMALL "flag" ON)
+option(BLOM_CHANNEL_MEDIUM "flag" OFF)
+option(BLOM_CHANNEL_LARGE "flag" OFF)
+if(BLOM_CHANNEL_SMALL AND BLOM_CHANNEL_MEDIUM)
+	message(FATAL_ERROR "BLOM_CHANNEL_SMALL and BLOM_CHANNEL_MEDIUM are mutually exclusive")
+endif()
+if(BLOM_CHANNEL_SMALL AND BLOM_CHANNEL_LARGE)
+	message(FATAL_ERROR "BLOM_CHANNEL_SMALL and BLOM_CHANNEL_LARGE are mutually exclusive")
+endif()
+if(BLOM_CHANNEL_MEDIUM AND BLOM_CHANNEL_LARGE)
+	message(FATAL_ERROR "BLOM_CHANNEL_MEDIUM and BLOM_CHANNEL_LARGE are mutually exclusive")
+endif()
+
 option(WITH_FLAGS_AVX2 "flag" ON)
 option(WITH_FLAGS_NOPREC_DIV "flag" ON)
 option(WITH_FLAGS_UNROLL "flag" ON)
@@ -16,6 +29,10 @@ option(WITH_ACC "compile with OpenACC" OFF)
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
 add_library(options_flags INTERFACE)
 target_compile_definitions(options_flags INTERFACE
+    $<$<BOOL:${BLOM_CHANNEL_SMALL}>:BLOM_CHANNEL_SMALL>
+    $<$<BOOL:${BLOM_CHANNEL_MEDIUM}>:BLOM_CHANNEL_MEDIUM>
+    $<$<BOOL:${BLOM_CHANNEL_LARGE}>:BLOM_CHANNEL_LARGE>
+
     $<$<BOOL:${ADVECT_EITVEL_OPT1}>:ADVECT_EITVEL_OPT1>
     $<$<BOOL:${ADVECT_EITVEL_OPT3}>:ADVECT_EITVEL_OPT3>
   )
