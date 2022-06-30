@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.20)
 
 project(blom-benchmarks VERSION 1.0.0 LANGUAGES C Fortran)
 
+option(BLOM_CHANNEL_SMALL "flag" ON)
+option(BLOM_CHANNEL_MEDIUM "flag" OFF)
+option(BLOM_CHANNEL_LARGE "flag" OFF)
+if(BLOM_CHANNEL_SMALL AND BLOM_CHANNEL_MEDIUM)
+	message(FATAL_ERROR "BLOM_CHANNEL_SMALL and BLOM_CHANNEL_MEDIUM are mutually exclusive")
+endif()
+if(BLOM_CHANNEL_SMALL AND BLOM_CHANNEL_LARGE)
+	message(FATAL_ERROR "BLOM_CHANNEL_SMALL and BLOM_CHANNEL_LARGE are mutually exclusive")
+endif()
+if(BLOM_CHANNEL_MEDIUM AND BLOM_CHANNEL_LARGE)
+	message(FATAL_ERROR "BLOM_CHANNEL_MEDIUM and BLOM_CHANNEL_LARGE are mutually exclusive")
+endif()
+
 option(WITH_FLAGS_AVX2 "flag" ON)
 option(WITH_FLAGS_NOPREC_DIV "flag" ON)
 option(WITH_FLAGS_UNROLL "flag" ON)
@@ -10,12 +23,16 @@ option(WITH_FLAGS_PREFETCH "flag" ON)
 option(ADVECT_EITVEL_OPT1 "enable opt1 within advect_eitvel" ON)
 # removed option(ADVECT_EITVEL_OPT2 "enable opt2 within advect_eitvel" ON)
 option(ADVECT_EITVEL_OPT3 "enable opt3 within advect_eitvel" ON)
-#option(WITH_ACC "compile with OpenACC" OFF)
+option(WITH_ACC "compile with OpenACC" OFF)
 #option(WITH_ACC_CPU "compile with OpenACC multicore" OFF)
 # https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
 add_library(options_flags INTERFACE)
 target_compile_definitions(options_flags INTERFACE
+    $<$<BOOL:${BLOM_CHANNEL_SMALL}>:BLOM_CHANNEL_SMALL>
+    $<$<BOOL:${BLOM_CHANNEL_MEDIUM}>:BLOM_CHANNEL_MEDIUM>
+    $<$<BOOL:${BLOM_CHANNEL_LARGE}>:BLOM_CHANNEL_LARGE>
+
     $<$<BOOL:${ADVECT_EITVEL_OPT1}>:ADVECT_EITVEL_OPT1>
     $<$<BOOL:${ADVECT_EITVEL_OPT3}>:ADVECT_EITVEL_OPT3>
   )
@@ -31,6 +48,7 @@ target_compile_options(options_flags INTERFACE
     $<$<BOOL:${WITH_FLAGS_PREFETCH}>: -qopt-prefetch >
 
     -qopenmp
+    -qopt-report-phase=vec,loop -qopt-report=5
    >
 
    $<$<Fortran_COMPILER_ID:GNU>:
@@ -85,3 +103,17 @@ target_link_libraries(remap_zero         options_flags)
 target_link_libraries(remap_limited_grad options_flags)
 target_link_libraries(remap_vel_u        options_flags)
 
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/Fypp.cmake)
+set(FYPP_FLAGS )
+if(WITH_ACC)
+	set(FYPP_FLAGS ${FYPP_FLAGS} --define=LOOP_ACC)
+endif()
+PreProcessFyppFiles(
+  advect_pbmin_opt1.fypp
+  remap_vel_u_fypp.fypp
+)
+
+add_executable(advect_pbmin_opt1            $<TARGET_OBJECTS:loop_utils> advect_pbmin_opt1.F90)
+target_link_libraries(advect_pbmin_opt1     options_flags)
+add_executable(remap_vel_u_fypp             $<TARGET_OBJECTS:loop_utils> remap_vel_u_fypp.F90)
+target_link_libraries(remap_vel_u_fypp      options_flags)

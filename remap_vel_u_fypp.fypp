@@ -1,3 +1,8 @@
+! ;;; -*- mode: f90; -*-
+! vim: ft=fortran :
+#:mute
+#:include 'macros.fypp'
+#:endmute
 program remap_vel_u
   use wallclock_mod
   use random_mod
@@ -715,8 +720,9 @@ program remap_vel_u
   write(*,*) "full loops: iterating over",MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call init_seed
-  do j=1-nbdy,jdm+nbdy
-     do i=1-nbdy,idm+nbdy
+#:block loop_2D(i0='1-nbdy', i1='idm+nbdy', j0='1-nbdy', j1='jdm+nbdy' &
+  , arrays='dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx' &
+       )
        dp(i,j) = random_uniform(-1.0, 1.0)
        pup(i,j) = random_uniform(-1.0, 1.0)
        plo(i,j) = random_uniform(-1.0, 1.0)
@@ -748,14 +754,16 @@ program remap_vel_u
        uflx(i,j) = random_uniform(-1.0, 1.0)
        utflx(i,j) = random_uniform(-1.0, 1.0)
        usflx(i,j) = random_uniform(-1.0, 1.0)
-    end do
- end do
-   
+#:endblock loop_2D
+       
   delta=0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
-     do j=1-mrg,jj+mrg
-        do i=1-mrg,ii+mrg+1
+#:block loop_2D(i0='1-mrg', i1='ii+mrg+1', j0='1-mrg', j1='jj+mrg' &
+  , arrays='dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx,iu' &
+       , shared='ii,jj,mrg' &
+       , private='fdu_,ftu_,fsu_,cu_,cuc_,cvc_,ym,xm,xc0,xc1,x4,y4,a,ax,ay,axx,ayy,axy,dl,fd,qx,qy,x2,y2' &
+       )
            if(iu(i,j) /= 0) then
               fdu_ = 0.0
               ftu_ = 0.0
@@ -894,9 +902,203 @@ program remap_vel_u
               utflx(i,j)=ftu_
               usflx(i,j)=fsu_
            endif
-        enddo
-        !
-     enddo
+#:endblock loop_2D
+     delta=delta+(wallclock()-t1)
+  enddo
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+#endif
+
+#define REMAP_VEL_U_OPT2
+#ifdef REMAP_VEL_U_OPT2
+  write(*,*) "full loops+collapse: iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  call init_seed
+#:block loop_2D(i0='1-nbdy', i1='idm+nbdy', j0='1-nbdy', j1='jdm+nbdy' &
+  , arrays='dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx' &
+       , collapse = True &
+       )
+       dp(i,j) = random_uniform(-1.0, 1.0)
+       pup(i,j) = random_uniform(-1.0, 1.0)
+       plo(i,j) = random_uniform(-1.0, 1.0)
+       fdu(i,j) = random_uniform(-1.0, 1.0)
+       fdv(i,j) = random_uniform(-1.0, 1.0)
+       ftu(i,j) = random_uniform(-1.0, 1.0)
+       ftv(i,j) = random_uniform(-1.0, 1.0)
+       fsu(i,j) = random_uniform(-1.0, 1.0)
+       fsv(i,j) = random_uniform(-1.0, 1.0)
+       cu(i,j) = random_uniform(-1.0, 1.0)
+       cv(i,j) = random_uniform(-1.0, 1.0)
+       dx(i,j) = random_uniform(-1.0, 1.0)
+       dy(i,j) = random_uniform(-1.0, 1.0)
+       xd(i,j) = random_uniform(-1.0, 1.0)
+       yd(i,j) = random_uniform(-1.0, 1.0)
+       tx(i,j) = random_uniform(-1.0, 1.0)
+       ty(i,j) = random_uniform(-1.0, 1.0)
+       temp(i,j) = random_uniform(-1.0, 1.0)
+       td(i,j) = random_uniform(-1.0, 1.0)
+       sx(i,j) = random_uniform(-1.0, 1.0)
+       sy(i,j) = random_uniform(-1.0, 1.0)
+       saln(i,j) = random_uniform(-1.0, 1.0)
+       sd(i,j) = random_uniform(-1.0, 1.0)
+       cuc(i,j) = random_uniform(-1.0, 1.0)
+       cvc(i,j) = random_uniform(-1.0, 1.0)
+       scp2(i,j) = random_uniform(-1.0, 1.0)
+       scp2i(i,j) = random_uniform(-1.0, 1.0)
+       pbu(i,j) = random_uniform(-1.0, 1.0)
+       uflx(i,j) = random_uniform(-1.0, 1.0)
+       utflx(i,j) = random_uniform(-1.0, 1.0)
+       usflx(i,j) = random_uniform(-1.0, 1.0)
+#:endblock loop_2D
+       
+  delta=0.0
+  do n_it=1, MAX_ITERATIONS
+     t1=wallclock()
+#:block loop_2D(i0='1-mrg', i1='ii+mrg+1', j0='1-mrg', j1='jj+mrg' &
+  , arrays='dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx,iu' &
+       , shared='ii,jj,mrg' &
+       , private='fdu_,ftu_,fsu_,cu_,cuc_,cvc_,ym,xm,xc0,xc1,x4,y4,a,ax,ay,axx,ayy,axy,dl,fd,qx,qy,x2,y2' &
+       , collapse = True &
+       )
+           if(iu(i,j) /= 0) then
+              fdu_ = 0.0
+              ftu_ = 0.0
+              fsu_ = 0.0
+              cu_ = cu(i,j)
+              cuc_ = cuc(i,j)
+              cvc_ = cvc(i,j)
+              ym=-.5*(cvc_+cvc(i,j+1))
+              xm=((ym+.5)*cuc_-(ym-.5)*cuc(i,j+1)-2.*cu_) &
+                     /(1.+cvc_-cvc(i,j+1))
+              if (cu_.gt.0.) then
+                 if (cvc_.gt.0.) then ! Add contributions from grid cell (i-1,j-1)
+                    ! --- ------- flux integrals over the triangle with vertices
+                    ! --- ------- [xc1+1/2,1/2], [-cuc(i,j)+1/2,-cvc(i,j)+1/2], and
+                    ! --- ------- [1/2,1/2].
+                    xc0=(xm*cvc_-cuc_*(ym+.5))/(cvc_+ym+.5)
+                    xc1=xc0*scp2(i-1,j)*scp2i(i-1,j-1)
+                    x4=xc0+.5
+                    y4=-.5
+                    call triint(scp2(i-1,j-1), &
+                              xc1+.5,.5,-cuc_+.5,-cvc_+.5,.5,.5, &
+                                        a,ax,ay,axx,ayy,axy &
+                                       )
+                    dl=min(dp(i-1,j-1),max(0.,pbu(i,j)-pup(i-1,j-1)))
+                    fd=a*dl+ax*dx(i-1,j-1)+ay*dy(i-1,j-1)
+                    fdu_=fdu_+fd
+                    qx=ax*dl+axx*dx(i-1,j-1)+axy*dy(i-1,j-1)
+                    qy=ay*dl+axy*dx(i-1,j-1)+ayy*dy(i-1,j-1)
+                    ftu_=ftu_+fd*td(i-1,j-1) &
+                                    +qx*tx(i-1,j-1)+qy*ty(i-1,j-1)
+                    fsu_=fsu_+fd*sd(i-1,j-1) &
+                                    +qx*sx(i-1,j-1)+qy*sy(i-1,j-1)
+                 else
+                    x4=-cuc_+.5
+                    y4=-cvc_-.5
+                 endif
+                 !
+                 if (cvc(i,j+1).lt.0.) then ! --- ------- Add contributions from grid cell (i-1,j+1). Assuming
+                    xc0=(xm*cvc(i,j+1)-cuc(i,j+1)*(ym-.5))/(cvc(i,j+1)+ym-.5)
+                    xc1=xc0*scp2(i-1,j)*scp2i(i-1,j+1)
+                    x2=xc0+.5
+                    y2=.5
+                    call triint(scp2(i-1,j+1), &
+                              xc1+.5,-.5,.5,-.5,-cuc(i,j+1)+.5,-cvc(i,j+1)-.5,&
+                                        a,ax,ay,axx,ayy,axy &
+                                       )
+                    dl=min(dp(i-1,j+1),max(0.,pbu(i,j)-pup(i-1,j+1)))
+                    fd=a*dl+ax*dx(i-1,j+1)+ay*dy(i-1,j+1)
+                    fdu_=fdu_+fd
+                    qx=ax*dl+axx*dx(i-1,j+1)+axy*dy(i-1,j+1)
+                    qy=ay*dl+axy*dx(i-1,j+1)+ayy*dy(i-1,j+1)
+                    ftu_=ftu_+fd*td(i-1,j+1) &
+                                    +qx*tx(i-1,j+1)+qy*ty(i-1,j+1)
+                    fsu_=fsu_+fd*sd(i-1,j+1) &
+                                    +qx*sx(i-1,j+1)+qy*sy(i-1,j+1)
+                 else
+                    x2=-cuc(i,j+1)+.5
+                    y2=-cvc(i,j+1)+.5
+                 endif
+                 ! --- ----- Add contributions from grid cell (i-1,j). Assuming
+                 call penint(scp2(i-1,j), &
+                         .5,.5,x2,y2,xm+.5,ym,x4,y4,.5,-.5, &
+                                   a,ax,ay,axx,ayy,axy &
+                                  )
+                 dl=min(dp(i-1,j),max(0.,pbu(i,j)-pup(i-1,j)))
+                 fd=a*dl+ax*dx(i-1,j)+ay*dy(i-1,j)
+                 fdu_=fdu_+fd
+                 qx=ax*dl+axx*dx(i-1,j)+axy*dy(i-1,j)
+                 qy=ay*dl+axy*dx(i-1,j)+ayy*dy(i-1,j)
+                 ftu_=ftu_+fd*td(i-1,j) &
+                               +qx*tx(i-1,j)+qy*ty(i-1,j)
+                 fsu_=fsu_+fd*sd(i-1,j) &
+                               +qx*sx(i-1,j)+qy*sy(i-1,j)
+              else ! cu_ < 0
+                 if (cvc_.gt.0.) then ! --- ------- Add contributions from grid cell (i,j-1).
+                    xc0=(xm*cvc_-cuc_*(ym+.5))/(cvc_+ym+.5)
+                    xc1=xc0*scp2(i,j)*scp2i(i,j-1)
+                    x4=xc0-.5
+                    y4=-.5
+                    call triint(scp2(i,j-1), &
+                              xc1-.5,.5,-cuc_-.5,-cvc_+.5,-.5,.5, &
+                                        a,ax,ay,axx,ayy,axy &
+                                       )
+                    dl=min(dp(i,j-1),max(0.,pbu(i,j)-pup(i,j-1)))
+                    fd=a*dl+ax*dx(i,j-1)+ay*dy(i,j-1)
+                    fdu_=fdu_+fd
+                    qx=ax*dl+axx*dx(i,j-1)+axy*dy(i,j-1)
+                    qy=ay*dl+axy*dx(i,j-1)+ayy*dy(i,j-1)
+                    ftu_=ftu_+fd*td(i,j-1) &
+                                    +qx*tx(i,j-1)+qy*ty(i,j-1)
+                    fsu_=fsu_+fd*sd(i,j-1) &
+                                    +qx*sx(i,j-1)+qy*sy(i,j-1)
+                 else
+                    x4=-cuc_-.5
+                    y4=-cvc_-.5
+                 endif
+                 if (cvc(i,j+1).lt.0.) then ! --- ------- Add contributions from grid cell (i,j+1). Assuming
+                    xc0=(xm*cvc(i,j+1)-cuc(i,j+1)*(ym-.5))/(cvc(i,j+1)+ym-.5)
+                    xc1=xc0*scp2(i,j)*scp2i(i,j+1)
+                    x2=xc0-.5
+                    y2=.5
+                    call triint(scp2(i,j+1), &
+                              xc1-.5,-.5,-.5,-.5,-cuc(i,j+1)-.5,-cvc(i,j+1)-.5, &
+                                        a,ax,ay,axx,ayy,axy &
+                                       )
+                    dl=min(dp(i,j+1),max(0.,pbu(i,j)-pup(i,j+1)))
+                    fd=a*dl+ax*dx(i,j+1)+ay*dy(i,j+1)
+                    fdu_=fdu_+fd
+                    qx=ax*dl+axx*dx(i,j+1)+axy*dy(i,j+1)
+                    qy=ay*dl+axy*dx(i,j+1)+ayy*dy(i,j+1)
+                    ftu_=ftu_+fd*td(i,j+1) &
+                                    +qx*tx(i,j+1)+qy*ty(i,j+1)
+                    fsu_=fsu_+fd*sd(i,j+1) &
+                                    +qx*sx(i,j+1)+qy*sy(i,j+1)
+                 else
+                    x2=-cuc(i,j+1)-.5
+                    y2=-cvc(i,j+1)+.5
+                 endif
+                 ! --- ----- Add contributions from grid cell (i,j). Assuming
+                 call penint(scp2(i,j), &
+                         -.5,.5,x2,y2,xm-.5,ym,x4,y4,-.5,-.5, &
+                                   a,ax,ay,axx,ayy,axy &
+                                  )
+                 dl=min(dp(i,j),max(0.,pbu(i,j)-pup(i,j)))
+                 fd=a*dl+ax*dx(i,j)+ay*dy(i,j)
+                 fdu_=fdu_+fd
+                 qx=ax*dl+axx*dx(i,j)+axy*dy(i,j)
+                 qy=ay*dl+axy*dx(i,j)+ayy*dy(i,j)
+                 ftu_=ftu_+fd*td(i,j) &
+                               +qx*tx(i,j)+qy*ty(i,j)
+                 fsu_=fsu_+fd*sd(i,j) &
+                               +qx*sx(i,j)+qy*sy(i,j)
+              endif
+              ! --- --- u-component of mass, heat and salt flux.
+              uflx(i,j)=fdu_
+              utflx(i,j)=ftu_
+              usflx(i,j)=fsu_
+           endif
+#:endblock loop_2D
      delta=delta+(wallclock()-t1)
   enddo
   write(*,*) "done"
@@ -956,10 +1158,12 @@ contains
                      ,axxx,ayyy,axxy,axyy &
 #endif
                      )
+    !!$omp declare simd
     !
     implicit none
     !
-    real ac,x1,y1,x2,y2,x3,y3,a,ax,ay,axx,ayy,axy
+    real, intent(in) :: ac,x1,y1,x2,y2,x3,y3
+    real, intent(out) :: a,ax,ay,axx,ayy,axy
 #if defined(TRC) && defined(ATRC)
     real axxx,ayyy,axxy,axyy
 #endif
@@ -1014,10 +1218,12 @@ contains
                      ,axxx,ayyy,axxy,axyy &
 #endif
                      )
+    !!$omp declare simd
     !
     implicit none
     !
-    real ac,x1,y1,x2,y2,x3,y3,x4,y4,x5,y5,a,ax,ay,axx,ayy,axy
+    real, intent(in) :: ac,x1,y1,x2,y2,x3,y3,x4,y4,x5,y5
+    real, intent(out) :: a,ax,ay,axx,ayy,axy
 #if defined(TRC) && defined(ATRC)
     real axxx,ayyy,axxy,axyy
 #endif
