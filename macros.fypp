@@ -27,3 +27,32 @@ $:'' if RANK == 0 else '(' + ':' + ',:' * (RANK - 1) + ')'
   enddo
 #:endif
 #:enddef loop_2D
+
+#:def loop_3D(kernel, i0='1', i1='ii', j0='1', j1='jj', k0='1', k1='kk', arrays='', private_arrays='', shared='', private='', collapse=False)
+#:if defined('LOOP_ACC')
+!$acc parallel loop #{if arrays !=''}#present(${arrays})#{endif}# &
+!$acc& #{if private_arrays !=''}#private(${private_arrays}$)#{endif}# &
+!$acc& collapse(3)
+  do k=${k0}$,${k1}$
+    do j=${j0}$,${j1}$
+       do i=${i0}$,${i1}$
+        $:kernel
+       enddo
+    enddo
+  enddo
+#:else
+!$OMP parallel do &
+!$OMP & default(none) &
+!$OMP & private(i,j,k#{if private   !=''}#,${private}$#{endif}#)#{if arrays != ''}#&#{endif}#
+#{if shared   !=''}#!$OMP & shared(${shared}$) #{if arrays != ''}#&#{endif}##{endif}#
+#{if arrays   !=''}#!$OMP & shared(${arrays}$) #{if collapse}#&#{endif}##{endif}# 
+#{if collapse}#!$OMP & collapse(3) #{endif}#
+  do k=${k0}$,${k1}$
+    do j=${j0}$,${j1}$
+       do i=${i0}$,${i1}$
+        $:kernel
+       enddo
+    enddo
+  enddo
+#:endif
+#:enddef loop_3D
