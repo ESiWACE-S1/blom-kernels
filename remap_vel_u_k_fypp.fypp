@@ -254,6 +254,7 @@ program remap_vel_u
   ! --- - u-components of fluxes.
   !
   write(*,*) "COMPUTE: remap_limited_grad"
+#if 1
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   write(*,*) "DEFAULT: iterating over",MAX_ITERATIONS, " iterations..."
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -304,6 +305,8 @@ program remap_vel_u
   delta=0.0
   do n_it=1, MAX_ITERATIONS
      t1=wallclock()
+!$OMP  PARALLEL DO PRIVATE(j,l,i)
+!!$OMP& FIRSTPRIVATE(utotm,vtotm)
      do k=1,kk
      do j=1-mrg,jj+mrg
         !
@@ -716,9 +719,486 @@ program remap_vel_u
         !
      enddo
      enddo
+!$OMP END PARALLEL DO
      delta=delta+(wallclock()-t1)
   enddo
   delta_orig=delta
+  write(*,*) "done"
+  write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
+#else
+  delta_orig = -1
+#endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  write(*,*) "default(none): iterating over",MAX_ITERATIONS, " iterations..."
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  call indxi(iu,ifu,ilu,isu)
+
+  call init_seed
+!!  do k=1,kk
+!!  do j=1-nbdy,jdm+nbdy
+!!     do i=1-nbdy,idm+nbdy
+#:block loop_3D(i0='1-nbdy', i1='idm+nbdy', j0='1-nbdy', j1='jdm+nbdy' &
+  , arrays='dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx' &
+       , shared='kk' &
+       , collapse = True &
+       )
+       dp(i,j,k) = random_uniform(-1.0, 1.0)
+       pup(i,j,k) = random_uniform(-1.0, 1.0)
+       plo(i,j,k) = random_uniform(-1.0, 1.0)
+       fdu(i,j,k) = random_uniform(-1.0, 1.0)
+       fdv(i,j,k) = random_uniform(-1.0, 1.0)
+       ftu(i,j,k) = random_uniform(-1.0, 1.0)
+       ftv(i,j,k) = random_uniform(-1.0, 1.0)
+       fsu(i,j,k) = random_uniform(-1.0, 1.0)
+       fsv(i,j,k) = random_uniform(-1.0, 1.0)
+       cu(i,j,k) = random_uniform(-1.0, 1.0)
+       cv(i,j,k) = random_uniform(-1.0, 1.0)
+       dx(i,j,k) = random_uniform(-1.0, 1.0)
+       dy(i,j,k) = random_uniform(-1.0, 1.0)
+       xd(i,j,k) = random_uniform(-1.0, 1.0)
+       yd(i,j,k) = random_uniform(-1.0, 1.0)
+       tx(i,j,k) = random_uniform(-1.0, 1.0)
+       ty(i,j,k) = random_uniform(-1.0, 1.0)
+       temp(i,j,k) = random_uniform(-1.0, 1.0)
+       td(i,j,k) = random_uniform(-1.0, 1.0)
+       sx(i,j,k) = random_uniform(-1.0, 1.0)
+       sy(i,j,k) = random_uniform(-1.0, 1.0)
+       saln(i,j,k) = random_uniform(-1.0, 1.0)
+       sd(i,j,k) = random_uniform(-1.0, 1.0)
+       cuc(i,j,k) = random_uniform(-1.0, 1.0)
+       cvc(i,j,k) = random_uniform(-1.0, 1.0)
+       scp2(i,j,k) = random_uniform(-1.0, 1.0)
+       scp2i(i,j,k) = random_uniform(-1.0, 1.0)
+       pbu(i,j,k) = random_uniform(-1.0, 1.0)
+       uflx(i,j,k) = random_uniform(-1.0, 1.0)
+       utflx(i,j,k) = random_uniform(-1.0, 1.0)
+       usflx(i,j,k) = random_uniform(-1.0, 1.0)
+#:endblock loop_3D
+  
+  delta=0.0
+  do n_it=1, MAX_ITERATIONS
+     t1=wallclock()
+!$OMP  PARALLEL DO default(none) &
+!$OMP& shared(dp,pup,plo,fdu,fdv,ftu,ftv,fsu,fsv,cu,cv,dx,dy,xd,yd,tx,ty,temp,td,sx,sy,saln,sd,cuc,cvc,scp2,scp2i,pbu,uflx,utflx,usflx,iu) &
+!$OMP&   shared(ii,jj,kk,mrg,isu,ifu,ilu) &
+!$OMP&   private(fdu_,ftu_,fsu_,cu_,cuc_,cvc_,ym,xm,xc0,xc1,x4,y4,a,ax,ay,axx,ayy,axy,dl,fd,qx,qy,x2,y2)
+     do k=1,kk
+     do j=1-mrg,jj+mrg
+        !
+        do l=1,isu(j)
+           do i=max(1-mrg,ifu(j,l)),min(ii+mrg+1,ilu(j,l))
+              !
+              ! --- --- Assuming coordinate [0,0] at the u-point, the non-dimensional
+              ! --- --- fluxing area is defined as the area of a polygon with vertices
+              ! --- --- [0,1/2], [-cuc(i,j+1,k),-cvc(i,j+1,k)+1/2], [xm,ym],
+              ! --- --- [-cuc(i,j,k),-cvc(i,j,k)-1/2], and [0,-1/2]. The vertex [xm,ym] is
+              ! --- --- defined so that the polygon area is equal to cu(i,j,k).
+              !
+              ym=-.5*(cvc(i,j,k)+cvc(i,j+1,k))
+              xm=((ym+.5)*cuc(i,j,k)-(ym-.5)*cuc(i,j+1,k)-2.*cu(i,j,k)) &
+                     /(1.+cvc(i,j,k)-cvc(i,j+1,k))
+              !
+              if (cu(i,j,k).gt.0.) then
+                 !
+                 if (cvc(i,j,k).gt.0.) then
+                    !
+                    ! --- ------- Add contributions from grid cell (i-1,j-1). Assuming
+                    ! --- ------- coordinate [0,0] at the cell center, the contributions are
+                    ! --- ------- flux integrals over the triangle with vertices
+                    ! --- ------- [xc1+1/2,1/2], [-cuc(i,j,k)+1/2,-cvc(i,j,k)+1/2], and
+                    ! --- ------- [1/2,1/2].
+                    !
+                    xc0=(xm*cvc(i,j,k)-cuc(i,j,k))*(ym+.5)/(cvc(i,j,k)+ym+.5)
+                    xc1=xc0*scp2(i-1,j,k)*scp2i(i-1,j-1,k)
+                    x4=xc0+.5
+                    y4=-.5
+                    call triint(scp2(i-1,j-1,k), &
+                              xc1+.5,.5,-cuc(i,j,k)+.5,-cvc(i,j,k)+.5,.5,.5, &
+                                        a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                       ,axxx,ayyy,axxy,axyy &
+#endif
+                                       )
+                    dl=min(dp(i-1,j-1,k),max(0.,pbu(i,j,k)-pup(i-1,j-1,k)))
+                    fd=a*dl+ax*dx(i-1,j-1,k)+ay*dy(i-1,j-1,k)
+                    fdu(i,j,k)=fdu(i,j,k)+fd
+                    qx=ax*dl+axx*dx(i-1,j-1,k)+axy*dy(i-1,j-1,k)
+                    qy=ay*dl+axy*dx(i-1,j-1,k)+ayy*dy(i-1,j-1,k)
+                    ftu(i,j,k)=ftu(i,j,k)+fd*td(i-1,j-1,k) &
+                                    +qx*tx(i-1,j-1,k)+qy*ty(i-1,j-1,k)
+                    fsu(i,j,k)=fsu(i,j,k)+fd*sd(i-1,j-1,k) &
+                                    +qx*sx(i-1,j-1,k)+qy*sy(i-1,j-1,k)
+#ifdef TRC
+#  ifdef ATRC
+                    qxx=axx*dl+axxx*dx(i-1,j-1,k)+axxy*dy(i-1,j-1,k)
+                    qyy=ayy*dl+axyy*dx(i-1,j-1,k)+ayyy*dy(i-1,j-1,k)
+                    qxy=axy*dl+axxy*dx(i-1,j-1,k)+axyy*dy(i-1,j-1,k)
+                    do nt=1,natr
+                       fdt=fd*trd(nt,i-1,j-1) &
+                                    +qx*trx(nt,i-1,j-1)+qy*try(nt,i-1,j-1)
+                       ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                       fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i-1,j-1) &
+                                             +(qx *trd(nt,i-1,j-1)  &
+                                              +qxx*trx(nt,i-1,j-1)  &
+                                              +qxy*try(nt,i-1,j-1))*agx(nt,i-1,j-1) &
+                                             +(qy *trd(nt,i-1,j-1)  &
+                                              +qxy*trx(nt,i-1,j-1)  &
+                                              +qyy*try(nt,i-1,j-1))*agy(nt,i-1,j-1)
+                    enddo
+                    do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j-1) &
+                                             +qx*trx(nt,i-1,j-1)+qy*try(nt,i-1,j-1)
+                    enddo
+#  else
+                    do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j-1) &
+                                             +qx*trx(nt,i-1,j-1)+qy*try(nt,i-1,j-1)
+                    enddo
+#  endif
+#endif
+                 else
+                    x4=-cuc(i,j,k)+.5
+                    y4=-cvc(i,j,k)-.5
+                 endif
+                 !
+                 if (cvc(i,j+1,k).lt.0.) then
+                    !
+                    ! --- ------- Add contributions from grid cell (i-1,j+1). Assuming
+                    ! --- ------- coordinate [0,0] at the cell center, the contributions are
+                    ! --- ------- flux integrals over the triangle with vertices
+                    ! --- ------- [xc1+1/2,-1/2], [1/2,-1/2], and
+                    ! --- ------- [-cuc(i,j+1,k)+1/2,-cvc(i,j+1,k)-1/2].
+                    !
+                    xc0=(xm*cvc(i,j+1,k)-cuc(i,j+1,k)*(ym-.5))/(cvc(i,j+1,k)+ym-.5)
+                    xc1=xc0*scp2(i-1,j,k)*scp2i(i-1,j+1,k)
+                    x2=xc0+.5
+                    y2=.5
+                    call triint(scp2(i-1,j+1,k), &
+                              xc1+.5,-.5,.5,-.5,-cuc(i,j+1,k)+.5,-cvc(i,j+1,k)-.5,&
+                                        a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                       ,axxx,ayyy,axxy,axyy &
+#endif
+                                       )
+                    dl=min(dp(i-1,j+1,k),max(0.,pbu(i,j,k)-pup(i-1,j+1,k)))
+                    fd=a*dl+ax*dx(i-1,j+1,k)+ay*dy(i-1,j+1,k)
+                    fdu(i,j,k)=fdu(i,j,k)+fd
+                    qx=ax*dl+axx*dx(i-1,j+1,k)+axy*dy(i-1,j+1,k)
+                    qy=ay*dl+axy*dx(i-1,j+1,k)+ayy*dy(i-1,j+1,k)
+                    ftu(i,j,k)=ftu(i,j,k)+fd*td(i-1,j+1,k) &
+                                    +qx*tx(i-1,j+1,k)+qy*ty(i-1,j+1,k)
+                    fsu(i,j,k)=fsu(i,j,k)+fd*sd(i-1,j+1,k) &
+                                    +qx*sx(i-1,j+1,k)+qy*sy(i-1,j+1,k)
+#ifdef TRC
+#  ifdef ATRC
+                    qxx=axx*dl+axxx*dx(i-1,j+1,k)+axxy*dy(i-1,j+1,k)
+                    qyy=ayy*dl+axyy*dx(i-1,j+1,k)+ayyy*dy(i-1,j+1,k)
+                    qxy=axy*dl+axxy*dx(i-1,j+1,k)+axyy*dy(i-1,j+1,k)
+                    do nt=1,natr
+                       fdt=fd*trd(nt,i-1,j+1) &
+                                    +qx*trx(nt,i-1,j+1)+qy*try(nt,i-1,j+1)
+                       ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                       fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i-1,j+1)& 
+                                             +(qx *trd(nt,i-1,j+1) &
+                                              +qxx*trx(nt,i-1,j+1) &
+                                              +qxy*try(nt,i-1,j+1))*agx(nt,i-1,j+1) &
+                                             +(qy *trd(nt,i-1,j+1) &
+                                              +qxy*trx(nt,i-1,j+1) &
+                                              +qyy*try(nt,i-1,j+1))*agy(nt,i-1,j+1)
+                    enddo
+                    do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j+1) &
+                                             +qx*trx(nt,i-1,j+1)+qy*try(nt,i-1,j+1)
+                    enddo
+#  else
+                    do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j+1) &
+                                             +qx*trx(nt,i-1,j+1)+qy*try(nt,i-1,j+1)
+                    enddo
+#  endif
+#endif
+                 else
+                    x2=-cuc(i,j+1,k)+.5
+                    y2=-cvc(i,j+1,k)+.5
+                 endif
+                 !
+                 ! --- ----- Add contributions from grid cell (i-1,j). Assuming
+                 ! --- ----- coordinate [0,0] at the cell center, the contributions are
+                 ! --- ----- flux integrals over the pentagon with vertices [1/2,1/2],
+                 ! --- ----- [x2,y2], [xm+1/2,ym], [x4,y4], and [1/2,-1/2].
+                 !
+                 call penint(scp2(i-1,j,k), &
+                         .5,.5,x2,y2,xm+.5,ym,x4,y4,.5,-.5, &
+                                   a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                  ,axxx,ayyy,axxy,axyy &
+#endif
+                                  )
+                 dl=min(dp(i-1,j,k),max(0.,pbu(i,j,k)-pup(i-1,j,k)))
+                 fd=a*dl+ax*dx(i-1,j,k)+ay*dy(i-1,j,k)
+                 fdu(i,j,k)=fdu(i,j,k)+fd
+                 qx=ax*dl+axx*dx(i-1,j,k)+axy*dy(i-1,j,k)
+                 qy=ay*dl+axy*dx(i-1,j,k)+ayy*dy(i-1,j,k)
+                 ftu(i,j,k)=ftu(i,j,k)+fd*td(i-1,j,k) &
+                               +qx*tx(i-1,j,k)+qy*ty(i-1,j,k)
+                 fsu(i,j,k)=fsu(i,j,k)+fd*sd(i-1,j,k) &
+                               +qx*sx(i-1,j,k)+qy*sy(i-1,j,k)
+#ifdef TRC
+#  ifdef ATRC
+                 qxx=axx*dl+axxx*dx(i-1,j,k)+axxy*dy(i-1,j,k)
+                 qyy=ayy*dl+axyy*dx(i-1,j,k)+ayyy*dy(i-1,j,k)
+                 qxy=axy*dl+axxy*dx(i-1,j,k)+axyy*dy(i-1,j,k)
+                 do nt=1,natr
+                    fdt=fd*trd(nt,i-1,j) &
+                               +qx*trx(nt,i-1,j)+qy*try(nt,i-1,j)
+                    ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                    fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i-1,j) &
+                                        +(qx *trd(nt,i-1,j) &
+                                         +qxx*trx(nt,i-1,j) &
+                                         +qxy*try(nt,i-1,j))*agx(nt,i-1,j) &
+                                        +(qy *trd(nt,i-1,j) &
+                                         +qxy*trx(nt,i-1,j) &
+                                         +qyy*try(nt,i-1,j))*agy(nt,i-1,j)
+                 enddo
+                 do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                    if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                    ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j) &
+                                        +qx*trx(nt,i-1,j)+qy*try(nt,i-1,j)
+                 enddo
+#  else
+                 do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                    if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                    ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i-1,j) &
+                                        +qx*trx(nt,i-1,j)+qy*try(nt,i-1,j)
+                 enddo
+#  endif
+#endif
+                 !
+              else
+                 !
+                 if (cvc(i,j,k).gt.0.) then
+                    !
+                    ! --- ------- Add contributions from grid cell (i,j-1). Assuming
+                    ! --- ------- coordinate [0,0] at the cell center, the contributions are
+                    ! --- ------- flux integrals over the triangle with vertices
+                    ! --- ------- [xc1-1/2,1/2], [-cuc(i,j,k)-1/2,-cvc(i,j,k)+1/2], and
+                    ! --- ------- [-1/2,1/2].
+                    !
+                    xc0=(xm*cvc(i,j,k)-cuc(i,j,k)*(ym+.5))/(cvc(i,j,k)+ym+.5)
+                    xc1=xc0*scp2(i,j,k)*scp2i(i,j-1,k)
+                    x4=xc0-.5
+                    y4=-.5
+                    call triint(scp2(i,j-1,k), &
+                              xc1-.5,.5,-cuc(i,j,k)-.5,-cvc(i,j,k)+.5,-.5,.5, &
+                                        a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                       ,axxx,ayyy,axxy,axyy &
+#endif
+                                       )
+                    dl=min(dp(i,j-1,k),max(0.,pbu(i,j,k)-pup(i,j-1,k)))
+                    fd=a*dl+ax*dx(i,j-1,k)+ay*dy(i,j-1,k)
+                    fdu(i,j,k)=fdu(i,j,k)+fd
+                    qx=ax*dl+axx*dx(i,j-1,k)+axy*dy(i,j-1,k)
+                    qy=ay*dl+axy*dx(i,j-1,k)+ayy*dy(i,j-1,k)
+                    ftu(i,j,k)=ftu(i,j,k)+fd*td(i,j-1,k) &
+                                    +qx*tx(i,j-1,k)+qy*ty(i,j-1,k)
+                    fsu(i,j,k)=fsu(i,j,k)+fd*sd(i,j-1,k) &
+                                    +qx*sx(i,j-1,k)+qy*sy(i,j-1,k)
+#ifdef TRC
+#  ifdef ATRC
+                    qxx=axx*dl+axxx*dx(i,j-1,k)+axxy*dy(i,j-1,k)
+                    qyy=ayy*dl+axyy*dx(i,j-1,k)+ayyy*dy(i,j-1,k)
+                    qxy=axy*dl+axxy*dx(i,j-1,k)+axyy*dy(i,j-1,k)
+                    do nt=1,natr
+                       fdt=fd*trd(nt,i,j-1) &
+                                    +qx*trx(nt,i,j-1)+qy*try(nt,i,j-1)
+                       ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                       fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i,j-1) &
+                                             +(qx *trd(nt,i,j-1)  &
+                                              +qxx*trx(nt,i,j-1)  &
+                                              +qxy*try(nt,i,j-1))*agx(nt,i,j-1) &
+                                             +(qy *trd(nt,i,j-1)  &
+                                              +qxy*trx(nt,i,j-1)  &
+                                              +qyy*try(nt,i,j-1))*agy(nt,i,j-1)
+                    enddo
+                    do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j-1) &
+                                             +qx*trx(nt,i,j-1)+qy*try(nt,i,j-1)
+                    enddo
+#  else
+                    do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j-1) &
+                                             +qx*trx(nt,i,j-1)+qy*try(nt,i,j-1)
+                    enddo
+#  endif
+#endif
+                 else
+                    x4=-cuc(i,j,k)-.5
+                    y4=-cvc(i,j,k)-.5
+                 endif
+                 !
+                 if (cvc(i,j+1,k).lt.0.) then
+                    !
+                    ! --- ------- Add contributions from grid cell (i,j+1). Assuming
+                    ! --- ------- coordinate [0,0] at the cell center, the contributions are
+                    ! --- ------- flux integrals over the triangle with vertices
+                    ! --- ------- [xc1-1/2,-1/2], [-1/2,-1/2], and
+                    ! --- ------- [-cuc(i,j+1,k)-1/2,-cvc(i,j+1,k)-1/2].
+                    !
+                    xc0=(xm*cvc(i,j+1,k)-cuc(i,j+1,k)*(ym-.5))/(cvc(i,j+1,k)+ym-.5)
+                    xc1=xc0*scp2(i,j,k)*scp2i(i,j+1,k)
+                    x2=xc0-.5
+                    y2=.5
+                    call triint(scp2(i,j+1,k), &
+                              xc1-.5,-.5,-.5,-.5,-cuc(i,j+1,k)-.5,-cvc(i,j+1,k)-.5, &
+                                        a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                       ,axxx,ayyy,axxy,axyy &
+#endif
+                                       )
+                    dl=min(dp(i,j+1,k),max(0.,pbu(i,j,k)-pup(i,j+1,k)))
+                    fd=a*dl+ax*dx(i,j+1,k)+ay*dy(i,j+1,k)
+                    fdu(i,j,k)=fdu(i,j,k)+fd
+                    qx=ax*dl+axx*dx(i,j+1,k)+axy*dy(i,j+1,k)
+                    qy=ay*dl+axy*dx(i,j+1,k)+ayy*dy(i,j+1,k)
+                    ftu(i,j,k)=ftu(i,j,k)+fd*td(i,j+1,k) &
+                                    +qx*tx(i,j+1,k)+qy*ty(i,j+1,k)
+                    fsu(i,j,k)=fsu(i,j,k)+fd*sd(i,j+1,k) &
+                                    +qx*sx(i,j+1,k)+qy*sy(i,j+1,k)
+#ifdef TRC
+#  ifdef ATRC
+                    qxx=axx*dl+axxx*dx(i,j+1,k)+axxy*dy(i,j+1,k)
+                    qyy=ayy*dl+axyy*dx(i,j+1,k)+ayyy*dy(i,j+1,k)
+                    qxy=axy*dl+axxy*dx(i,j+1,k)+axyy*dy(i,j+1,k)
+                    do nt=1,natr
+                       fdt=fd*trd(nt,i,j+1) &
+                                    +qx*trx(nt,i,j+1)+qy*try(nt,i,j+1)
+                       ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                       fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i,j+1) &
+                                             +(qx *trd(nt,i,j+1)  &
+                                              +qxx*trx(nt,i,j+1)  &
+                                              +qxy*try(nt,i,j+1))*agx(nt,i,j+1) &
+                                             +(qy *trd(nt,i,j+1)  &
+                                              +qxy*trx(nt,i,j+1)  &
+                                              +qyy*try(nt,i,j+1))*agy(nt,i,j+1)
+                    enddo
+                    do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j+1) &
+                                             +qx*trx(nt,i,j+1)+qy*try(nt,i,j+1)
+                    enddo
+#  else
+                    do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                       if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                       ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j+1) &
+                                             +qx*trx(nt,i,j+1)+qy*try(nt,i,j+1)
+                    enddo
+#  endif
+#endif
+                 else
+                    x2=-cuc(i,j+1,k)-.5
+                    y2=-cvc(i,j+1,k)+.5
+                 endif
+                 !
+                 ! --- ----- Add contributions from grid cell (i,j). Assuming
+                 ! --- ----- coordinate [0,0] at the cell center, the contributions are
+                 ! --- ----- flux integrals over the pentagon with vertices [-1/2,1/2],
+                 ! --- ----- [x2,y2], [xm-1/2,ym], [x4,y4], and [-1/2,-1/2].
+                 !
+                 call penint(scp2(i,j,k), &
+                         -.5,.5,x2,y2,xm-.5,ym,x4,y4,-.5,-.5, &
+                                   a,ax,ay,axx,ayy,axy &
+#if defined(TRC) && defined(ATRC)
+                                  ,axxx,ayyy,axxy,axyy &
+#endif
+                                  )
+                 dl=min(dp(i,j,k),max(0.,pbu(i,j,k)-pup(i,j,k)))
+                 fd=a*dl+ax*dx(i,j,k)+ay*dy(i,j,k)
+                 fdu(i,j,k)=fdu(i,j,k)+fd
+                 qx=ax*dl+axx*dx(i,j,k)+axy*dy(i,j,k)
+                 qy=ay*dl+axy*dx(i,j,k)+ayy*dy(i,j,k)
+                 ftu(i,j,k)=ftu(i,j,k)+fd*td(i,j,k) &
+                               +qx*tx(i,j,k)+qy*ty(i,j,k)
+                 fsu(i,j,k)=fsu(i,j,k)+fd*sd(i,j,k) &
+                               +qx*sx(i,j,k)+qy*sy(i,j,k)
+#ifdef TRC
+#  ifdef ATRC
+                 qxx=axx*dl+axxx*dx(i,j,k)+axxy*dy(i,j,k)
+                 qyy=ayy*dl+axyy*dx(i,j,k)+ayyy*dy(i,j,k)
+                 qxy=axy*dl+axxy*dx(i,j,k)+axyy*dy(i,j,k)
+                 do nt=1,natr
+                    fdt=fd*trd(nt,i,j) &
+                               +qx*trx(nt,i,j)+qy*try(nt,i,j)
+                    ftru(nt,i,j)=ftru(nt,i,j)+fdt
+                    fagu(nt,i,j)=fagu(nt,i,j)+fdt*agd(nt,i,j) &
+                                        +(qx *trd(nt,i,j) &
+                                         +qxx*trx(nt,i,j) &
+                                         +qxy*try(nt,i,j))*agx(nt,i,j) &
+                                        +(qy *trd(nt,i,j) &
+                                         +qxy*trx(nt,i,j) &
+                                         +qyy*try(nt,i,j))*agy(nt,i,j)
+                 enddo
+                 do nt=natr+1,ntr-natr
+#    if defined(TKE) && !defined(TKEADV)
+                    if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                    ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j) &
+                                        +qx*trx(nt,i,j)+qy*try(nt,i,j)
+                 enddo
+#  else
+                 do nt=1,ntr
+#    if defined(TKE) && !defined(TKEADV)
+                    if (nt.eq.itrtke.or.nt.eq.itrgls) cycle
+#    endif
+                    ftru(nt,i,j)=ftru(nt,i,j)+fd*trd(nt,i,j) &
+                                        +qx*trx(nt,i,j)+qy*try(nt,i,j)
+                 enddo
+#  endif
+#endif
+                 !
+              endif
+              !
+              ! --- --- u-component of mass, heat and salt flux.
+              uflx(i,j,k)=fdu(i,j,k)
+              utflx(i,j,k)=ftu(i,j,k)
+              usflx(i,j,k)=fsu(i,j,k)
+              !
+           enddo
+        enddo
+        !
+     enddo
+     enddo
+!$OMP END PARALLEL DO
+     delta=delta+(wallclock()-t1)
+  enddo
+  if(delta_orig == -1) delta_orig=delta
   write(*,*) "done"
   write(*,'(a,3(f14.6,x))') "timing", delta, delta/real(MAX_ITERATIONS), delta_orig/delta
 
